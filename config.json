@@ -1,0 +1,12 @@
+{
+  "development": {
+    "scriptRoot": "files/script",
+    "logRoot": "files/logs",
+    "configRoot": "files/config"
+  },
+  "production": {
+    "scriptRoot": "resources/files/script",
+    "logRoot": "resources/files/logs",
+    "configRoot": "resources/files/config"
+  }
+}

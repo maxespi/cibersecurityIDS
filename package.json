@@ -1,0 +1,40 @@
+{
+  "name": "cibersecurity",
+  "version": "1.0.0",
+  "description": "A simple event logger application",
+  "main": "main.js",
+  "scripts": {
+    "start": "cross-env NODE_ENV=development electron .",
+    "build": "cross-env NODE_ENV=production electron-builder"
+  },
+  "build": {
+    "appId": "com.yourdomain.eventlogger",
+    "win": {
+      "target": "nsis",
+      "icon": "hacker.ico",
+      "extraFiles": [
+        {
+          "from": "files/script",
+          "to": "files/script"
+        },
+        {
+          "from": "files/logs",
+          "to": "files/logs"
+        },
+        {
+          "from": "files/config",
+          "to": "files/config"
+        }
+      ]
+    },
+    "directories": {
+      "output": "dist"
+    }
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "electron-reload": "^2.0.0-alpha.1"
+  }
+}
