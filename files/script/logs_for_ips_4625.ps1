@@ -94,16 +94,31 @@ if ($eventos.Count -gt 0) {
 
     $porcentaje = 0
 
+    function Get-EventProperty($event, $propertyName) {
+        $property = $event.Event.EventData.Data | Where-Object { $_.Name -eq $propertyName }
+        if ($property -and $property.'#text') {
+            return $property.'#text'
+        }
+        else {
+            return "$propertyName no disponible"
+        }
+    }
+
     $eventos | ForEach-Object {
         $event = [xml]$_.ToXml()  # Convertir el evento a XML  
 
         # Verificar que el evento no sea nulo
         if ($null -ne $event) {
-            $ip = $event.Event.EventData.Data | Where-Object { $_.Name -eq "IpAddress" } | Select-Object -ExpandProperty '#text'
+            $ip = Get-EventProperty $event "IpAddress"
+
+            if ($ip -eq "IpAddress no disponible") {
+                Write-Host "IP no disponible, omitiendo..."
+                continue
+            }          
 
             if ($ip -in $whitelistIps) {
                 Write-Host "IP en lista blanca, omitiendo..."
-                return              
+                continue
             }
 
             if ($ip -notin $existingIps -and $ip -notin $ips) {
@@ -123,11 +138,11 @@ if ($eventos.Count -gt 0) {
 
             # Solo procesar eventos con timestamp mayor al último registrado
             if ($fechaDatetime -gt $lastTimestamp) {
-                $usuario = $event.Event.EventData.Data | Where-Object { $_.Name -eq "TargetUserName" } | Select-Object -ExpandProperty '#text'
-                $tipoInicioSesion = $event.Event.EventData.Data | Where-Object { $_.Name -eq "LogonType" } | Select-Object -ExpandProperty '#text'
-                $codigoError = $event.Event.EventData.Data | Where-Object { $_.Name -eq "Status" } | Select-Object -ExpandProperty '#text'
-                $dominio = $event.Event.EventData.Data | Where-Object { $_.Name -eq "TargetDomainName" } | Select-Object -ExpandProperty '#text'
-                $nombreEquipo = $event.Event.EventData.Data | Where-Object { $_.Name -eq "WorkstationName" } | Select-Object -ExpandProperty '#text'
+                $usuario = Get-EventProperty $event "TargetUserName"
+                $tipoInicioSesion = Get-EventProperty $event "LogonType"
+                $codigoError = Get-EventProperty $event "Status"
+                $dominio = Get-EventProperty $event "TargetDomainName"
+                $nombreEquipo = Get-EventProperty $event "WorkstationName"
 
                 # Añadir el evento al array de eventos a guardar
                 $eventosParaGuardar += "$ip,$fecha,$usuario,$tipoInicioSesion,$codigoError,$dominio,$nombreEquipo"
@@ -144,8 +159,8 @@ if ($eventos.Count -gt 0) {
         $porcentajeActual = [math]::Round(($porcentaje / $eventos.Count) * 100)
         if ($porcentajeActual -gt $porcentaje) {
             $porcentaje = $porcentajeActual
-            Write-Host "Procesando eventos... $porcentaje%"
-        }  
+            Write-Progress -Activity "Procesando eventos" -Status "$porcentaje% completado" -PercentComplete $porcentaje
+        }   
     }
 
     if ($eventosParaGuardar.Count -gt 0) {
@@ -165,13 +180,13 @@ if ($eventos.Count -gt 0) {
     if ($ips) {        
         # Combinar las IPs existentes y las nuevas
         $allIps = $existingIps + $ips
-        
-        # Guardar las nuevas IPs en el archivo
-        $allIps | Out-File -FilePath $ipsFile -Encoding UTF8
 
-        # Calcular los resúmenes y Mostrar resumen
-        $uniqueIps = $allIps | Sort-Object | Get-Unique
+        # Eliminar duplicados y ordenar
+        $uniqueIps = $allIps | Sort-Object -Unique
 
+        # Guardar las IPs únicas en el archivo
+        $uniqueIps | Out-File -FilePath $ipsFile -Encoding UTF8       
+     
         Write-Host "IP identificadas para bloquear:"
         Write-Host "Cantidad de IPs anteriores: $($existingIps.Count)"
         Write-Host "Cantidad de nuevas IPs encontradas: $($ips.Count)"

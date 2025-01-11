@@ -1,3 +1,7 @@
+
+let scriptInterval;
+let isRunning = false;
+
 // Función para agregar una entrada al log
 function addLogEntry(message) {
     const log = document.getElementById('actions');
@@ -11,13 +15,9 @@ function addLogEntry(message) {
     // Actualizar los logs recientes
 }
 
-let scriptInterval;
-let isRunning = false;
-
 function startScriptExecution(intervalSeconds) {
     const intervalMilliseconds = intervalSeconds * 1000;
     scriptInterval = setInterval(() => {
-        console.log('Checking if script is running...');
         if (!isRunning) {
             console.log('Script is not running, starting new execution...');
             isRunning = true;
@@ -26,6 +26,25 @@ function startScriptExecution(intervalSeconds) {
                 scriptPromise.then(() => {
                     console.log('Script execution completed.');
                     isRunning = false;
+
+                    // Verificar si se debe ejecutar "Agregar Reglas al Firewall"
+                    const runFirewallOnce = document.getElementById('runFirewallOnce').checked;
+                    const runFirewallAlways = document.getElementById('runFirewallAlways').checked;
+
+                    if (runFirewallOnce || runFirewallAlways) {
+                        window.electronAPI.runScript('BlockIpAndUpdateForOneRule.ps1').then(() => {
+                            console.log('Firewall rules added.');
+                            addLogEntry('Reglas del firewall agregadas.');
+                        }).catch((error) => {
+                            console.log('Error during firewall rules execution:', error.message);
+                            addLogEntry(`Error al agregar reglas del firewall: ${error.message}`);
+                        });
+
+                        // Desmarcar "Ejecutar una vez" después de la ejecución
+                        if (runFirewallOnce) {
+                            document.getElementById('runFirewallOnce').checked = false;
+                        }
+                    }
                 }).catch((error) => {
                     console.log('Error during script execution:', error.message);
                     addLogEntry(`Error al ejecutar el script: ${error.message}`);
@@ -58,6 +77,25 @@ document.getElementById('startLogging').addEventListener('click', () => {
         console.log('Running script once.');
         window.electronAPI.runScript('logs_for_ips_4625.ps1').then(() => {
             console.log('Script execution completed.');
+
+            // Verificar si se debe ejecutar "Agregar Reglas al Firewall"
+            const runFirewallOnce = document.getElementById('runFirewallOnce').checked;
+            const runFirewallAlways = document.getElementById('runFirewallAlways').checked;
+
+            if (runFirewallOnce || runFirewallAlways) {
+                window.electronAPI.runScript('BlockIpAndUpdateForOneRule.ps1').then(() => {
+                    console.log('Firewall rules added.');
+                    addLogEntry('Reglas del firewall agregadas.');
+                }).catch((error) => {
+                    console.log('Error during firewall rules execution:', error.message);
+                    addLogEntry(`Error al agregar reglas del firewall: ${error.message}`);
+                });
+
+                // Desmarcar "Ejecutar una vez" después de la ejecución
+                if (runFirewallOnce) {
+                    document.getElementById('runFirewallOnce').checked = false;
+                }
+            }
         }).catch((error) => {
             console.log('Error during script execution:', error.message);
             addLogEntry(`Error al ejecutar el script: ${error.message}`);
@@ -336,7 +374,27 @@ document.getElementById('exactMatch').addEventListener('change', () => {
     document.getElementById('searchCount').textContent = `Resultados encontrados: ${filteredRows.length}`;
 });
 
+window.electronAPI.onUserLoggedIn((username) => {
+    const userPanel = document.getElementById('loggedInUser');
+    userPanel.textContent = `Usuario: ${username}`;
+});
+
 window.electronAPI.onLogClose((message) => {
     addLogEntry(message);
 });
 
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.electronAPI.onUserLoggedIn((username) => {
+        const userPanel = document.getElementById('loggedInUser');
+        if (userPanel) {
+            userPanel.textContent = `Usuario: ${username}`;
+        }
+    });
+
+    window.electronAPI.onAppOpened(() => {
+        console.log('Aplicación abierta en main.html');
+        // Aquí puedes cargar el contenido necesario para main.html
+    });
+});

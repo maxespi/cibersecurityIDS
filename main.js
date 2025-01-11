@@ -2,11 +2,13 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
+const sequelize = require('./db/config/db');
+const User = require('./db/models/User');
 
 // Habilitar recarga automática en desarrollo
 if (process.env.NODE_ENV === 'development') {
     require('electron-reload')(__dirname, {
-        electron: path.join(__dirname, 'node_modules', '.bin', 'electron')
+        electron: path.join(__dirname, 'node_modules', '.bin', 'electron'),
     });
 }
 
@@ -30,25 +32,60 @@ function createWindow() {
             nodeIntegration: false
         },
         autoHideMenuBar: true // Ocultar la barra de menú automáticamente
-
     });
-
-    mainWindow.loadFile('index.html');
-
-    // Asegurarse de que la barra de menú esté oculta
+    //mainWindow.maximize();
+    mainWindow.loadFile(path.join(__dirname, 'src/views/login.html')); // Cargar login.html inicialmente
     mainWindow.setMenuBarVisibility(false);
-
     // Enviar un evento al proceso de renderizado cuando la aplicación se abre
     mainWindow.webContents.on('did-finish-load', () => {
         mainWindow.webContents.send('app-opened');
     });
-
-    // Abrir las herramientas de desarrollo (opcional)
-    //mainWindow.webContents.openDevTools();
+    /*   if (process.env.NODE_ENV === 'development') {
+          mainWindow.webContents.openDevTools();
+      } */
+    return mainWindow; // Asegúrate de devolver la instancia de la ventana
 }
 
-app.whenReady().then(() => {
-    createWindow();
+app.whenReady().then(async () => {
+    try {
+        // Verificar la conexión a la base de datos
+        await sequelize.authenticate();
+        console.log('Connection has been established successfully.');
+
+        // Sincronizar la base de datos
+        await sequelize.sync();
+        console.log('Database synchronized.');
+
+        // Verificar si el usuario 'admin' ya existe
+        const existingUser = await User.findOne({ where: { username: 'admin' } });
+        if (!existingUser) {
+            // Crear un nuevo usuario si no existe
+            const newUser = await User.create({ username: 'admin', password: 'admin' });
+            console.log('New user created:', newUser.toJSON());
+        } else {
+            console.log('User "admin" already exists.');
+        }
+
+        // Crear la ventana principal
+        const mainWindow = createWindow();
+
+        mainWindow.webContents.on('did-finish-load', () => {
+            mainWindow.webContents.send('user-logged-in', 'admin');
+        });
+
+        ipcMain.handle('navigate-to-scripts', () => {
+            mainWindow.loadFile(path.join(__dirname, 'src/views/scriptsView.html'));
+        });
+
+        ipcMain.handle('navigate-to-logs', () => {
+            mainWindow.loadFile(path.join(__dirname, 'src/views/logsView.html'));
+        });
+
+
+    } catch (error) {
+        console.error('Unable to connect to the database:', error);
+    }
+
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
@@ -69,7 +106,7 @@ ipcMain.handle('run-script', async (event, scriptName) => {
     const logPath = logRoot;
     const configPath = configRoot;
 
-    console.log(`Ejecutando script en la ruta: ${scriptPath}`);  // Mensaje de depuración
+    //console.log(`Ejecutando script en la ruta: ${scriptPath}`);  // Mensaje de depuración
 
     return new Promise((resolve, reject) => {
         const script = spawn('powershell.exe', [
@@ -121,4 +158,21 @@ ipcMain.on('load-log-content2', (event) => {
             event.reply('log-content2', data);
         }
     });
+});
+
+ipcMain.handle('login', async (event, username, password) => {
+    console.log(`Intentando iniciar sesión con usuario: ${username}`);
+    try {
+        const user = await User.findOne({ where: { username, password } });
+        if (user) {
+            console.log('Inicio de sesión exitoso');
+            return { success: true };
+        } else {
+            console.log('Inicio de sesión fallido: usuario no encontrado');
+            return { success: false };
+        }
+    } catch (error) {
+        console.error('Error during login:', error);
+        return { success: false };
+    }
 });

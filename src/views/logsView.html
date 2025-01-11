@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Logs View</title>
+    <!-- Import Materialize CSS -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css"
+      rel="stylesheet"
+    />
+    <!-- Import Google Icon Font -->
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        height: 100vh;
+        background: rgb(132, 132, 135);
+        color: rgb(226, 220, 220);
+        margin: 0;
+        padding: 0;
+        font-family: "Courier New", Courier, monospace;
+      }
+      .container {
+        padding: 40px;
+        box-shadow: 0 2px 10px rgba(122, 117, 117, 0.1);
+        border-radius: 0;
+        text-align: center;
+        width: 100%;
+        max-width: 1100px;
+        height: 100%;
+        margin: 0;
+      }
+      .panelmenu {
+        display: flex;
+        margin-top: 20px;
+        width: 100%;
+        height: 230px;
+      }
+      .bloquemenu {
+        display: block;
+        justify-content: center;
+        align-items: center;
+        background: rgb(85, 84, 84);
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        text-align: center;
+        max-width: 250px;
+        margin: 3px;
+        flex-grow: 1;
+        border: 1px solid #020202;
+      }
+      .btn {
+        margin: 5px;
+      }
+      .bloquelogs {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+      .bloquelogs > * {
+        flex: 1 1 45%;
+        margin: 1px;
+        box-sizing: border-box;
+      }
+      div.logs {
+        background: #5d5b5b;
+        padding: 10px;
+        border-radius: 4px;
+        text-align: left;
+        overflow: auto;
+        line-height: 1;
+        height: 150px;
+        margin: 10px;
+        display: flex;
+        border: 1px solid #020202;
+      }
+      div.logsrecent {
+        flex-direction: column;
+        font-size: x-small;
+        padding: 0;
+        margin: 10px;
+      }
+      div.logsscript {
+        flex-direction: column-reverse;
+        font-size: x-small;
+        padding: 0;
+        margin: 10px;
+        height: 250px;
+      }
+      #logContent {
+        width: 100%;
+        height: 250px;
+        overflow: auto;
+      }
+      table {
+        width: 100%;
+        height: 100%;
+        border-collapse: collapse;
+        margin: 0;
+      }
+      td {
+        padding: 2px;
+        border: 1px solid #020202;
+        line-height: 1;
+        text-align: center;
+      }
+      th {
+        margin: 0;
+        padding: 0;
+        border-bottom: 1px solid #bcb7b7;
+        position: sticky;
+        top: 0;
+        line-height: 1.5;
+        background: #393838;
+        z-index: 1;
+        text-align: center;
+      }
+      .hidden {
+        display: none;
+      }
+      .pagination {
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+      }
+      .pagination button {
+        margin: 0 5px;
+      }
+      #searchBar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      #searchInput {
+        flex: 1;
+        margin-right: 20px;
+        width: 200px;
+      }
+      #searchCount {
+        flex: 1;
+        margin: 0;
+        width: 100px;
+      }
+      #exactMatch {
+        flex: 1;
+        margin: 0;
+        width: 100px;
+      }
+      .nav {
+        justify-content: center;
+        margin: 1px;
+      }
+      h1 {
+        text-align: center;
+        font-size: xx-large;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="userPanel" class="user-panel">
+        <span id="loggedInUser">Usuario: No logueado</span>
+      </div>
+      <h1 class="center-align">Identificador de Intrusos</h1>
+      <div class="nav">
+        <button id="showScripts" class="btn waves-effect waves-light">
+          Scripts
+        </button>
+        <button id="showLogs" class="btn waves-effect waves-light">Logs</button>
+        <button id="showSalidaIpsLogs" class="btn waves-effect waves-light">
+          IPs detectadas
+        </button>
+      </div>
+
+      <div id="logsView" class="view">
+        <h2>Logs View</h2>
+        <div id="searchBar">
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Buscar en los logs..."
+          />
+
+          <label>
+            <input type="checkbox" id="exactMatch" />
+            <span>Coincidencia exacta</span>
+          </label>
+
+          <p id="searchCount">Resultados encontrados: 0</p>
+        </div>
+
+        <div id="logContent" class="logs logsrecent"></div>
+        <div class="pagination">
+          <button id="prevPage" class="btn waves-effect waves-light">
+            Anterior
+          </button>
+          <button id="nextPage" class="btn waves-effect waves-light">
+            Siguiente
+          </button>
+        </div>
+      </div>
+    </div>
+    <script src="../renderer/logsView.js"></script>
+    <script src="../renderer/renderTable.js"></script>
+  </body>
+</html>

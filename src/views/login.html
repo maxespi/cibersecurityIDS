@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Iniciar Sesión</title>
+  </head>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: rgb(132, 132, 135);
+      color: rgb(255, 255, 255);
+      font-family: "Courier New", Courier, monospace;
+    }
+    .login-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: rgb(72, 72, 106);
+      padding: 10px;
+      width: 300px;
+      height: 100px;
+      border-radius: 10px;
+      border: 1px solid rgba(220, 18, 18, 0.871);
+    }
+  </style>
+  <body>
+    <div id="loginPanel" class="login-panel">
+      <h2>Iniciar Sesión</h2>
+      <form id="loginForm" class="login-form">
+        <label for="username">Usuario:</label>
+        <input type="text" id="username" name="username" required />
+        <label for="password">Contraseña:</label>
+        <input type="password" id="password" name="password" required />
+        <button type="submit">Iniciar Sesión</button>
+      </form>
+      <div id="loginError" class="error-message"></div>
+    </div>
+    <script src="../renderer/login.js"></script>
+  </body>
+</html>
