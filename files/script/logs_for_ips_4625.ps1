@@ -102,7 +102,7 @@ if ($eventos.Count -gt 0) {
         else {
             return "$propertyName no disponible"
         }
-    }
+    }  
 
     $eventos | ForEach-Object {
         $event = [xml]$_.ToXml()  # Convertir el evento a XML  

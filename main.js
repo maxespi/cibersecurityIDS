@@ -4,6 +4,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const sequelize = require('./db/config/db');
 const User = require('./db/models/User');
+const scanForIpIn4625 = require('./src/utils/scanForIpIn4625');
 
 // Habilitar recarga automática en desarrollo
 if (process.env.NODE_ENV === 'development') {
@@ -31,17 +32,19 @@ function createWindow() {
             enableRemoteModule: false,
             nodeIntegration: false
         },
-        autoHideMenuBar: true // Ocultar la barra de menú automáticamente
+        //autoHideMenuBar: true // Ocultar la barra de menú automáticamente
     });
     //mainWindow.maximize();
-    mainWindow.loadFile(path.join(__dirname, 'src/views/login.html')); // Cargar login.html inicialmente
+    mainWindow.loadFile(path.join(__dirname, 'src/views/main.html')); // Cargar login.html inicialmente
     mainWindow.setMenuBarVisibility(false);
+
     // Enviar un evento al proceso de renderizado cuando la aplicación se abre
     mainWindow.webContents.on('did-finish-load', () => {
         mainWindow.webContents.send('app-opened');
     });
+
     /*   if (process.env.NODE_ENV === 'development') {
-          mainWindow.webContents.openDevTools();
+        mainWindow.webContents.openDevTools();
       } */
     return mainWindow; // Asegúrate de devolver la instancia de la ventana
 }
@@ -108,6 +111,15 @@ ipcMain.handle('run-script', async (event, scriptName) => {
 
     //console.log(`Ejecutando script en la ruta: ${scriptPath}`);  // Mensaje de depuración
 
+    /*   try {
+          const logData = await scanForIpIn4625(logPath, configPath);
+          event.sender.send('log-data', logData);
+          return Promise.resolve();
+      } catch (error) {
+          event.sender.send('log-error', error.message);
+          return Promise.reject(error);
+      } */
+
     return new Promise((resolve, reject) => {
         const script = spawn('powershell.exe', [
             '-File', scriptPath,
@@ -140,6 +152,20 @@ ipcMain.handle('run-script', async (event, scriptName) => {
 
 ipcMain.on('load-log-content', (event) => {
     const logFilePath = path.join(logRoot, 'registro_intentos.csv');
+
+    // Asegurarse de que el directorio del archivo de log exista
+    const logDir = path.dirname(logFilePath);
+    if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+    }
+
+
+    // Asegurarse de que el archivo de log exista
+    // el file tiene estos encabezados IP,Fecha,Usuario,TipoInicioSesion,CodigoError,Dominio,NombreEquipo
+    if (!fs.existsSync(logFilePath)) {
+        fs.writeFileSync(logFilePath, '');
+    }
+
     fs.readFile(logFilePath, 'utf-8', (err, data) => {
         if (err) {
             event.reply('log-content', `Error al leer el archivo de log: ${err.message}`);
