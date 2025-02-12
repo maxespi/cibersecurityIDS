@@ -96,7 +96,7 @@ if ($eventos.Count -gt 0) {
 
     function Get-EventProperty($event, $propertyName) {
         $property = $event.Event.EventData.Data | Where-Object { $_.Name -eq $propertyName }
-        if ($property -and $property.'#text') {
+        if ($property -and $null -ne $property.'#text') {
             return $property.'#text'
         }
         else {

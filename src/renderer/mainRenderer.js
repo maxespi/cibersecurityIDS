@@ -11,7 +11,6 @@ function addLogEntry(message) {
 
     // Insertar la nueva entrada al principio del log
     log.prepend(logEntry);
-
     // Actualizar los logs recientes
 }
 
@@ -314,11 +313,11 @@ window.electronAPI.onLogContent((content) => {
     updateRecentTableLogs(rows);
 });
 
-window.electronAPI.onLogContent2((content) => {
-    const rows = content.trim().split('\n').map(row => [row]); // Cada fila es un array con un solo elemento
-    tableHeaders = ['IP']; // Encabezado para la columna única
+/* window.electronAPI.onLogContent2((content) => {
+    const rows = content.trim().split('\n').map(row => [row]); 
+    tableHeaders = ['IP']; 
 
-    // Invertir el orden de las filas para mostrar del más nuevo al más antiguo
+
     rows.reverse();
 
     tableRows = rows;
@@ -326,7 +325,7 @@ window.electronAPI.onLogContent2((content) => {
     currentPage = 1;
     renderTablePage(filteredRows, currentPage);
     updatePaginationControls();
-});
+}); */
 
 
 // Manejar la búsqueda en los logs

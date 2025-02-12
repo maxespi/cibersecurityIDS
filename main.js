@@ -32,25 +32,29 @@ function createWindow() {
             enableRemoteModule: false,
             nodeIntegration: false
         },
-        //autoHideMenuBar: true // Ocultar la barra de menú automáticamente
+        autoHideMenuBar: true // Ocultar la barra de menú automáticamente
     });
     //mainWindow.maximize();
-    mainWindow.loadFile(path.join(__dirname, 'src/views/main.html')); // Cargar login.html inicialmente
+    mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'login.html')).catch((err) => {
+        console.error('Error loading main.html:', err);
+    });
+
     mainWindow.setMenuBarVisibility(false);
 
-    // Enviar un evento al proceso de renderizado cuando la aplicación se abre
     mainWindow.webContents.on('did-finish-load', () => {
-        mainWindow.webContents.send('app-opened');
+        console.log('La aplicación se ha abierto.');
     });
 
     /*   if (process.env.NODE_ENV === 'development') {
-        mainWindow.webContents.openDevTools();
-      } */
+        } */
+    mainWindow.webContents.openDevTools();
     return mainWindow; // Asegúrate de devolver la instancia de la ventana
 }
 
 app.whenReady().then(async () => {
     try {
+        console.log('Iniciando la aplicación...');
+
         // Verificar la conexión a la base de datos
         await sequelize.authenticate();
         console.log('Connection has been established successfully.');
@@ -77,18 +81,22 @@ app.whenReady().then(async () => {
         });
 
         ipcMain.handle('navigate-to-scripts', () => {
-            mainWindow.loadFile(path.join(__dirname, 'src/views/scriptsView.html'));
+            mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'scriptsView.html')).catch((err) => {
+                console.error('Error loading scriptsView.html:', err);
+            });
         });
 
         ipcMain.handle('navigate-to-logs', () => {
-            mainWindow.loadFile(path.join(__dirname, 'src/views/logsView.html'));
+            mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'logsView.html')).catch((err) => {
+                console.error('Error loading logsView.html:', err);
+            });
         });
-
 
     } catch (error) {
         console.error('Unable to connect to the database:', error);
+        // Crear la ventana principal incluso si hay un error de conexión a la base de datos
+        createWindow();
     }
-
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
@@ -103,22 +111,23 @@ app.on('window-all-closed', () => {
     }
 });
 
+// Manejar errores globales
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+    fs.writeFileSync(path.join(logRoot, 'error.log'), `Uncaught Exception: ${error.message}\n${error.stack}`);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection:', reason);
+    fs.writeFileSync(path.join(logRoot, 'error.log'), `Unhandled Rejection: ${reason}\n${promise}`);
+});
+
+
 // Manejar la comunicación con el proceso de renderizado
 ipcMain.handle('run-script', async (event, scriptName) => {
     const scriptPath = path.join(scriptRoot, scriptName);
     const logPath = logRoot;
     const configPath = configRoot;
-
-    //console.log(`Ejecutando script en la ruta: ${scriptPath}`);  // Mensaje de depuración
-
-    /*   try {
-          const logData = await scanForIpIn4625(logPath, configPath);
-          event.sender.send('log-data', logData);
-          return Promise.resolve();
-      } catch (error) {
-          event.sender.send('log-error', error.message);
-          return Promise.reject(error);
-      } */
 
     return new Promise((resolve, reject) => {
         const script = spawn('powershell.exe', [
@@ -150,6 +159,15 @@ ipcMain.handle('run-script', async (event, scriptName) => {
     });
 });
 
+/*   try {
+       const logData = await scanForIpIn4625(logPath, configPath);
+       event.sender.send('log-data', logData);
+       return Promise.resolve();
+   } catch (error) {
+       event.sender.send('log-error', error.message);
+       return Promise.reject(error);
+   } */
+
 ipcMain.on('load-log-content', (event) => {
     const logFilePath = path.join(logRoot, 'registro_intentos.csv');
 
@@ -159,9 +177,7 @@ ipcMain.on('load-log-content', (event) => {
         fs.mkdirSync(logDir, { recursive: true });
     }
 
-
     // Asegurarse de que el archivo de log exista
-    // el file tiene estos encabezados IP,Fecha,Usuario,TipoInicioSesion,CodigoError,Dominio,NombreEquipo
     if (!fs.existsSync(logFilePath)) {
         fs.writeFileSync(logFilePath, '');
     }
@@ -175,7 +191,7 @@ ipcMain.on('load-log-content', (event) => {
     });
 });
 
-ipcMain.on('load-log-content2', (event) => {
+/* ipcMain.on('load-log-content2', (event) => {
     const logFilePath = path.join(logRoot, 'salida_ips.txt');
     fs.readFile(logFilePath, 'utf-8', (err, data) => {
         if (err) {
@@ -184,7 +200,7 @@ ipcMain.on('load-log-content2', (event) => {
             event.reply('log-content2', data);
         }
     });
-});
+}); */
 
 ipcMain.handle('login', async (event, username, password) => {
     console.log(`Intentando iniciar sesión con usuario: ${username}`);
