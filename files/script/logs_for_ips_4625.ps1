@@ -76,7 +76,7 @@ $filter = @{
 
 # Obtener los eventos filtrados por ID 4625 y StartTime, limitando hasta $maxEventos
 try {
-    $eventos = Get-WinEvent -FilterHashtable $filter #-MaxEvents $maxEventos
+    $eventos = Get-WinEvent -FilterHashtable $filter -MaxEvents $maxEventos
     if ($null -eq $eventos) {
         Write-Host "No se encontraron eventos con los criterios especificados."
     }

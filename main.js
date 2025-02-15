@@ -6,6 +6,9 @@ const sequelize = require('./db/config/db');
 const User = require('./db/models/User');
 const scanForIpIn4625 = require('./src/utils/scanForIpIn4625');
 
+const userDataPath = app.getPath('userData');
+
+
 // Habilitar recarga automática en desarrollo
 if (process.env.NODE_ENV === 'development') {
     require('electron-reload')(__dirname, {
@@ -17,7 +20,8 @@ if (process.env.NODE_ENV === 'development') {
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf-8'));
 const environment = process.env.NODE_ENV || 'development';
 const scriptRoot = config[environment].scriptRoot;
-const logRoot = config[environment].logRoot;
+const logRoot = path.join(userDataPath, 'logs'); // Guardar los logs en la carpeta de datos del usuario
+//const logRoot = config[environment].logRoot;
 const configRoot = config[environment].configRoot;
 
 function createWindow() {
@@ -35,7 +39,7 @@ function createWindow() {
         autoHideMenuBar: true // Ocultar la barra de menú automáticamente
     });
     //mainWindow.maximize();
-    mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'login.html')).catch((err) => {
+    mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'main.html')).catch((err) => {
         console.error('Error loading main.html:', err);
     });
 
@@ -46,8 +50,8 @@ function createWindow() {
     });
 
     /*   if (process.env.NODE_ENV === 'development') {
+        mainWindow.webContents.openDevTools();
         } */
-    mainWindow.webContents.openDevTools();
     return mainWindow; // Asegúrate de devolver la instancia de la ventana
 }
 
@@ -56,17 +60,21 @@ app.whenReady().then(async () => {
         console.log('Iniciando la aplicación...');
 
         // Verificar la conexión a la base de datos
+        console.log('Intentando conectar a la base de datos...');
         await sequelize.authenticate();
         console.log('Connection has been established successfully.');
 
         // Sincronizar la base de datos
+        console.log('Sincronizando la base de datos...');
         await sequelize.sync();
         console.log('Database synchronized.');
 
         // Verificar si el usuario 'admin' ya existe
+        console.log('Verificando si el usuario "admin" ya existe...');
         const existingUser = await User.findOne({ where: { username: 'admin' } });
         if (!existingUser) {
             // Crear un nuevo usuario si no existe
+            console.log('Creando un nuevo usuario "admin"...');
             const newUser = await User.create({ username: 'admin', password: 'admin' });
             console.log('New user created:', newUser.toJSON());
         } else {
@@ -191,8 +199,19 @@ ipcMain.on('load-log-content', (event) => {
     });
 });
 
-/* ipcMain.on('load-log-content2', (event) => {
+ipcMain.on('load-log-content2', (event) => {
     const logFilePath = path.join(logRoot, 'salida_ips.txt');
+
+    const logDir = path.dirname(logFilePath);
+    if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+    }
+
+    // Asegurarse de que el archivo de log exista
+    if (!fs.existsSync(logFilePath)) {
+        fs.writeFileSync(logFilePath, '');
+    }
+
     fs.readFile(logFilePath, 'utf-8', (err, data) => {
         if (err) {
             event.reply('log-content2', `Error al leer el archivo de log: ${err.message}`);
@@ -200,7 +219,7 @@ ipcMain.on('load-log-content', (event) => {
             event.reply('log-content2', data);
         }
     });
-}); */
+});
 
 ipcMain.handle('login', async (event, username, password) => {
     console.log(`Intentando iniciar sesión con usuario: ${username}`);

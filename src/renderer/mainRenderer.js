@@ -313,9 +313,9 @@ window.electronAPI.onLogContent((content) => {
     updateRecentTableLogs(rows);
 });
 
-/* window.electronAPI.onLogContent2((content) => {
-    const rows = content.trim().split('\n').map(row => [row]); 
-    tableHeaders = ['IP']; 
+window.electronAPI.onLogContent2((content) => {
+    const rows = content.trim().split('\n').map(row => [row]);
+    tableHeaders = ['IP'];
 
 
     rows.reverse();
@@ -325,7 +325,7 @@ window.electronAPI.onLogContent((content) => {
     currentPage = 1;
     renderTablePage(filteredRows, currentPage);
     updatePaginationControls();
-}); */
+});
 
 
 // Manejar la búsqueda en los logs
