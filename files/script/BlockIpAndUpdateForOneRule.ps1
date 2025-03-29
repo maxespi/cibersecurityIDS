@@ -15,6 +15,13 @@ if ($os.Caption -notlike "*Server*") {
 
 Write-Host "Ejecutando..."
 
+# Función para validar direcciones IP
+function Is-ValidIp {
+    param (
+        [string]$ip
+    )
+    return $ip -match '^(([0-9]{1,3}\.){3}[0-9]{1,3})(\/[0-9]{1,2})?$' -and ($ip -split '/')[0] -notmatch '^25[6-9]|2[6-9][0-9]|[3-9][0-9]{2}'
+}
 # Leer el archivo CSV y extraer las IPs
 $whitelistCsvPath = Join-Path -Path $configPath -ChildPath "whitelistIps.csv" # Ruta del archivo CSV de la lista blanca
 $whitelistIps = if (Test-Path $whitelistCsvPath) {
@@ -27,13 +34,14 @@ else {
 
 # Ruta del archivo de texto con las IPs que quieres bloquear
 $ipsFile = Join-Path -Path $LogPath -ChildPath "salida_ips.txt"
+
 #$ipsFile = "C:\scripts\logs\salida_ips.txt"
 
 # Lee las IPs desde el archivo de texto
 $ips = Get-Content -Path $ipsFile
 
 # Filtrar las IPs que no están en la lista blanca
-$ipsToBlock = $ips | Where-Object { $_ -and $_ -notin $whitelistIps }
+$ipsToBlock = $ips | Where-Object { $_ -and ($_ -notin $whitelistIps) -and (Is-ValidIp $_) }
 
 # Verifica si ya existe la regla de entrada
 $existingInboundRule = Get-NetFirewallRule | Where-Object { $_.DisplayName -eq "Bloquear IPs seleccionadas Inbound" }
@@ -68,6 +76,9 @@ else {
         Write-Host "No se encontraron nuevas IPs para agregar en la regla de entrada."
     }
 }
+
+# Repite el mismo proceso para las reglas de salida
+$existingOutboundRule = Get-NetFirewallRule | Where-Object { $_.DisplayName -eq "Bloquear IPs seleccionadas Outbound" }
 
 # Si la regla de salida no existe, crea la regla
 if (-not $existingOutboundRule) {
