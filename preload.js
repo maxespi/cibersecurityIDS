@@ -13,5 +13,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onUserLoggedIn: (callback) => ipcRenderer.on('user-logged-in', (event, username) => callback(username)),
     login: (username, password) => ipcRenderer.invoke('login', username, password),
     navigateToScripts: () => ipcRenderer.invoke('navigate-to-scripts'),
-    navigateToLogs: () => ipcRenderer.invoke('navigate-to-logs')
+    navigateToLogs: () => ipcRenderer.invoke('navigate-to-logs'),
+
+    // Firewall-related methods
+    navigateToFirewall: () => ipcRenderer.invoke('navigate-to-firewall'),
+    getBlockedIPs: () => ipcRenderer.invoke('get-blocked-ips'),
+    getFirewallStats: () => ipcRenderer.invoke('get-firewall-stats'),
+    removeIPFromFirewall: (ip) => ipcRenderer.invoke('remove-ip-from-firewall', ip),
+    getIPGeolocation: (ip) => ipcRenderer.invoke('get-ip-geolocation', ip),
+    checkAdminPrivileges: () => ipcRenderer.invoke('check-admin-privileges')
 });

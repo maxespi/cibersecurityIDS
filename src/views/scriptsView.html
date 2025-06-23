@@ -1,245 +1,275 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Scripts View</title>
-    <!-- Import Materialize CSS -->
+    <title>Scripts - CyberGuard IDS</title>
+
+    <!-- Import Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Import Google Fonts -->
     <link
-      href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
+
     <!-- Import Google Icon Font -->
     <link
       href="https://fonts.googleapis.com/icon?family=Material+Icons"
       rel="stylesheet"
     />
+
     <style>
       body {
-        display: flex;
-        justify-content: center;
-        align-items: flex-start;
-        height: 100vh;
-        background: rgb(132, 132, 135);
-        color: rgb(226, 220, 220);
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
         margin: 0;
         padding: 0;
-        font-family: "Courier New", Courier, monospace;
       }
-      .container {
-        padding: 40px;
-        box-shadow: 0 2px 10px rgba(122, 117, 117, 0.1);
-        border-radius: 0;
-        text-align: center;
-        width: 100%;
-        max-width: 1100px;
-        height: 100%;
-        margin: 0;
-      }
-      .panelmenu {
-        display: flex;
-        margin-top: 20px;
-        width: 100%;
-        height: 230px;
-      }
-      .bloquemenu {
-        display: block;
-        justify-content: center;
-        align-items: center;
-        background: rgb(85, 84, 84);
-        padding: 20px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        border-radius: 8px;
-        text-align: center;
-        max-width: 250px;
-        margin: 3px;
-        flex-grow: 1;
-        border: 1px solid #020202;
-      }
-      .btn {
-        margin: 5px;
-      }
-      .bloquelogs {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        flex-direction: row;
-        flex-wrap: wrap;
-      }
-      .bloquelogs > * {
-        flex: 1 1 45%;
-        margin: 1px;
-        box-sizing: border-box;
-      }
-      div.logs {
-        background: #5d5b5b;
-        padding: 10px;
-        border-radius: 4px;
-        text-align: left;
-        overflow: auto;
-        line-height: 1;
-        height: 150px;
-        margin: 10px;
-        display: flex;
-        border: 1px solid #020202;
-      }
-      div.logsrecent {
-        flex-direction: column;
-        font-size: x-small;
-        padding: 0;
-        margin: 10px;
-      }
-      div.logsscript {
-        flex-direction: column-reverse;
-        font-size: x-small;
-        padding: 0;
-        margin: 10px;
-        height: 250px;
-      }
-      #logContent {
-        width: 100%;
-        height: 250px;
-        overflow: auto;
-      }
-      table {
-        width: 100%;
-        height: 100%;
-        border-collapse: collapse;
-        margin: 0;
-      }
-      td {
-        padding: 2px;
-        border: 1px solid #020202;
-        line-height: 1;
-        text-align: center;
-      }
-      th {
-        margin: 0;
-        padding: 0;
-        border-bottom: 1px solid #bcb7b7;
-        position: sticky;
-        top: 0;
-        line-height: 1.5;
-        background: #393838;
-        z-index: 1;
-        text-align: center;
-      }
-      .hidden {
-        display: none;
-      }
-      .pagination {
-        display: flex;
-        justify-content: center;
-        margin-top: 20px;
-      }
-      .pagination button {
-        margin: 0 5px;
-      }
-      #searchBar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-      }
-      #searchInput {
-        flex: 1;
-        margin-right: 20px;
-        width: 200px;
-      }
-      #searchCount {
-        flex: 1;
-        margin: 0;
-        width: 100px;
-      }
-      #exactMatch {
-        flex: 1;
-        margin: 0;
-        width: 100px;
-      }
-      .nav {
-        justify-content: center;
-        margin: 1px;
-      }
-      h1 {
-        text-align: center;
-        font-size: xx-large;
-        font-weight: bold;
+
+      .glass-effect {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
       }
     </style>
   </head>
   <body>
-    <div class="container">
-      <div id="userPanel" class="user-panel">
-        <span id="loggedInUser">Usuario: No logueado</span>
-      </div>
-      <h1 class="center-align">Identificador de Intrusos</h1>
-      <div class="nav">
-        <button id="showScripts" class="btn waves-effect waves-light">
-          Scripts
-        </button>
-        <button id="showLogs" class="btn waves-effect waves-light">Logs</button>
-        <button id="showSalidaIpsLogs" class="btn waves-effect waves-light">
-          IPs detectadas
-        </button>
-      </div>
-
-      <div id="scriptsView" class="view">
-        <div class="panelmenu">
-          <div class="bloquemenu">
-            <input
-              type="number"
-              id="intervalInput"
-              placeholder="Intervalo en segundos"
-              min="1"
-            />
-            <label>
-              <input type="checkbox" id="runFirewallOnce" />
-              <span>To firewall once</span>
-            </label>
-            <button id="startLogging" class="btn waves-effect waves-light">
-              <i class="material-icons left">play_arrow</i>Escanear
-            </button>
-            <button id="stopLogging" class="btn waves-effect waves-light">
-              <i class="material-icons left">stop</i>Detener
-            </button>
-          </div>
-
-          <div class="bloquemenu">
-            <input type="checkbox" id="runFirewallAlways" />
-            <span>Always to firewall</span>
-
-            <button id="addFirewallRules" class="btn waves-effect waves-light">
-              <i class="material-icons left">security</i>Agregar Reglas al
-              Firewall
-            </button>
-            <button
-              id="clearLog"
-              class="btn red lighten-1 waves-effect waves-light"
-            >
-              <i class="material-icons left">delete</i>Limpiar Log
-            </button>
-          </div>
-          <div style="display: flex; flex-direction: column; width: 100%">
-            <div>Ultimos 25 registros...</div>
-            <div class="pagination">
-              <button id="prevPage" class="btn waves-effect waves-light">
-                Anterior
-              </button>
-              <button id="nextPage" class="btn waves-effect waves-light">
-                Siguiente
-              </button>
+    <!-- Header -->
+    <header class="glass-effect">
+      <div class="max-w-7xl mx-auto px-6 py-4">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center space-x-3">
+            <div class="bg-green-500 text-white p-3 rounded-full">
+              <i class="material-icons text-2xl">code</i>
             </div>
-            <div id="logContent" class="logs logsrecent"></div>
+            <div>
+              <h1 class="text-2xl font-bold text-white">
+                Scripts de Automatización
+              </h1>
+              <p class="text-green-100 text-sm">
+                Detección y Respuesta Automática
+              </p>
+            </div>
+          </div>
+
+          <div id="userPanel" class="text-right">
+            <div
+              class="bg-white bg-opacity-20 backdrop-filter backdrop-blur-lg rounded-lg px-4 py-2"
+            >
+              <span id="loggedInUser" class="text-white font-medium"
+                >👤 Usuario: Admin</span
+              >
+            </div>
           </div>
         </div>
-        <div class="bloquelogs">
-          <div>Acciones de usuario</div>
-          <div>Logs de script</div>
-          <div id="actions" class="logs logsscript"></div>
-          <div id="log" class="logs logsscript"></div>
+      </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="max-w-7xl mx-auto px-6 py-4">
+      <div class="flex justify-center space-x-4">
+        <button
+          id="showScripts"
+          class="bg-green-500 text-white px-6 py-2 rounded-lg font-medium"
+        >
+          <i class="material-icons mr-2">code</i>Scripts
+        </button>
+        <button
+          id="showLogs"
+          class="bg-white bg-opacity-20 text-white px-6 py-2 rounded-lg font-medium hover:bg-opacity-30 transition-all"
+        >
+          <i class="material-icons mr-2">list_alt</i>Logs
+        </button>
+        <button
+          id="showSalidaIpsLogs"
+          class="bg-white bg-opacity-20 text-white px-6 py-2 rounded-lg font-medium hover:bg-opacity-30 transition-all"
+        >
+          <i class="material-icons mr-2">visibility</i>IPs Detectadas
+        </button>
+        <button
+          id="showFirewall"
+          class="bg-white bg-opacity-20 text-white px-6 py-2 rounded-lg font-medium hover:bg-opacity-30 transition-all"
+        >
+          <i class="material-icons mr-2">shield</i>Firewall
+        </button>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-6 pb-8">
+      <!-- Control Panel -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        <!-- Escaneo Automático -->
+        <div class="glass-effect rounded-2xl p-6">
+          <h3 class="text-xl font-semibold text-white mb-4 flex items-center">
+            <i class="material-icons mr-3 text-green-400">schedule</i>
+            Escaneo Automático
+          </h3>
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-white mb-2">
+                Intervalo (segundos)
+              </label>
+              <input
+                type="number"
+                id="intervalInput"
+                placeholder="60"
+                min="1"
+                class="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-white placeholder-opacity-70 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+
+            <div class="space-y-2">
+              <label class="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  id="runFirewallOnce"
+                  class="rounded text-green-500"
+                />
+                <span class="text-white text-sm"
+                  >Aplicar reglas firewall una vez</span
+                >
+              </label>
+            </div>
+
+            <div class="flex space-x-2">
+              <button
+                id="startLogging"
+                class="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center"
+              >
+                <i class="material-icons mr-2">play_arrow</i>Escanear
+              </button>
+              <button
+                id="stopLogging"
+                class="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center"
+              >
+                <i class="material-icons mr-2">stop</i>Detener
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gestión de Firewall -->
+        <div class="glass-effect rounded-2xl p-6">
+          <h3 class="text-xl font-semibold text-white mb-4 flex items-center">
+            <i class="material-icons mr-3 text-red-400">security</i>
+            Gestión de Firewall
+          </h3>
+
+          <div class="space-y-4">
+            <label class="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="runFirewallAlways"
+                class="rounded text-red-500"
+              />
+              <span class="text-white text-sm"
+                >Aplicar reglas automáticamente</span
+              >
+            </label>
+
+            <button
+              id="addFirewallRules"
+              class="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center"
+            >
+              <i class="material-icons mr-2">add_moderator</i>Agregar Reglas al
+              Firewall
+            </button>
+
+            <button
+              id="showFirewall"
+              class="w-full bg-red-500 hover:bg-red-600 text-white py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center"
+            >
+              <i class="material-icons mr-2">shield</i>Ver Dashboard Firewall
+            </button>
+
+            <button
+              id="clearLog"
+              class="w-full bg-gray-500 hover:bg-gray-600 text-white py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center"
+            >
+              <i class="material-icons mr-2">clear_all</i>Limpiar Log
+            </button>
+          </div>
+        </div>
+
+        <!-- Actividad Reciente -->
+        <div class="glass-effect rounded-2xl p-6">
+          <h3 class="text-xl font-semibold text-white mb-4 flex items-center">
+            <i class="material-icons mr-3 text-blue-400">history</i>
+            Últimos 25 Registros
+          </h3>
+
+          <div class="flex justify-between items-center mb-3">
+            <button
+              id="prevPage"
+              class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-all"
+            >
+              Anterior
+            </button>
+            <button
+              id="nextPage"
+              class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-all"
+            >
+              Siguiente
+            </button>
+          </div>
+
+          <div
+            id="logContent"
+            class="bg-white bg-opacity-10 rounded-lg p-4 h-64 overflow-y-auto"
+          >
+            <div class="text-center text-white text-opacity-70 mt-20">
+              <i class="material-icons text-4xl mb-2">inbox</i>
+              <p>Cargando actividad reciente...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Logs -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Acciones de Usuario -->
+        <div class="glass-effect rounded-2xl p-6">
+          <h3 class="text-xl font-semibold text-white mb-4 flex items-center">
+            <i class="material-icons mr-3 text-green-400">person</i>
+            Acciones de Usuario
+          </h3>
+          <div
+            id="actions"
+            class="bg-white bg-opacity-10 rounded-lg p-4 h-64 overflow-y-auto text-sm"
+          >
+            <div class="text-center text-white text-opacity-70 mt-20">
+              <i class="material-icons text-4xl mb-2">person_outline</i>
+              <p>Sin acciones registradas</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Logs de Script -->
+        <div class="glass-effect rounded-2xl p-6">
+          <h3 class="text-xl font-semibold text-white mb-4 flex items-center">
+            <i class="material-icons mr-3 text-orange-400">terminal</i>
+            Logs de Script
+          </h3>
+          <div
+            id="log"
+            class="bg-white bg-opacity-10 rounded-lg p-4 h-64 overflow-y-auto text-sm font-mono"
+          >
+            <div class="text-center text-white text-opacity-70 mt-20">
+              <i class="material-icons text-4xl mb-2">code</i>
+              <p>Esperando ejecución de scripts...</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
+
     <script src="../renderer/scriptsView.js"></script>
     <script src="../renderer/renderTable.js"></script>
   </body>

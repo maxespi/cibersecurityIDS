@@ -119,6 +119,10 @@ window.electronAPI.onLogClose((message) => {
     logElement.innerText += `PROCESS CLOSED: ${message}\n`;
 });
 
+document.getElementById('showFirewall')?.addEventListener('click', () => {
+    window.electronAPI.navigateToFirewall();
+});
+
 
 function addLogEntry(message) {
     const log = document.getElementById('actions');

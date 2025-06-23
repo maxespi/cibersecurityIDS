@@ -5,7 +5,11 @@
   "main": "main.js",
   "scripts": {
     "start": "cross-env NODE_ENV=development electron .",
-    "build": "cross-env NODE_ENV=production electron-builder"
+    "build": "npm run build-react && cross-env NODE_ENV=production electron-builder",
+    "build-react": "webpack --mode=development",
+    "build-react-prod": "webpack --mode=production",
+    "dev": "concurrently \"npm run build-react -- --watch\" \"cross-env NODE_ENV=development electron .\"",
+    "watch-react": "webpack --mode=development --watch"
   },
   "build": {
     "appId": "com.yourdomain.eventlogger",
@@ -24,20 +28,34 @@
         {
           "from": "files/config",
           "to": "files/config"
+        },
+        {
+          "from": "dist",
+          "to": "dist"
         }
       ]
     },
     "directories": {
-      "output": "dist"
+      "output": "dist-app"
     }
   },
   "devDependencies": {
+    "@babel/core": "^7.23.0",
+    "@babel/preset-react": "^7.22.0",
+    "babel-loader": "^9.1.0",
+    "concurrently": "^8.2.0",
     "cross-env": "^7.0.3",
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
-    "electron-reload": "^2.0.0-alpha.1"
+    "electron-reload": "^2.0.0-alpha.1",
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.0"
   },
   "dependencies": {
+    "lucide-react": "^0.263.1",
+    "node-fetch": "^2.7.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "sequelize": "^6.37.5",
     "sqlite3": "^5.1.7"
   }

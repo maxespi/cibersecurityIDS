@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Firewall Dashboard</title>
+
+    <!-- Import Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Import Materialize CSS for navigation compatibility -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css"
+      rel="stylesheet"
+    />
+
+    <!-- Import Google Icon Font -->
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+
+    <style>
+      body {
+        background: rgb(132, 132, 135);
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+          sans-serif;
+        min-height: 100vh;
+      }
+
+      .app-header {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 15px 0;
+        margin-bottom: 20px;
+      }
+
+      .nav {
+        text-align: center;
+        margin: 10px 0;
+      }
+
+      .nav button {
+        margin: 0 5px;
+        transition: all 0.3s ease;
+      }
+
+      .nav button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+
+      .firewall-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 20px;
+        background: rgba(255, 255, 255, 0.98);
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        min-height: 600px;
+        color: #333;
+      }
+
+      .user-panel {
+        color: rgb(226, 220, 220);
+        text-align: right;
+        padding: 10px 20px;
+        font-size: 14px;
+      }
+
+      h1 {
+        text-align: center;
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: rgb(226, 220, 220);
+        margin: 20px 0;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      /* Loading animation */
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 768px) {
+        .firewall-container {
+          margin: 0 10px;
+          border-radius: 8px;
+        }
+
+        h1 {
+          font-size: 2rem;
+        }
+
+        .nav button {
+          margin: 2px;
+          font-size: 12px;
+          padding: 8px 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-header">
+      <div class="user-panel">
+        <span id="loggedInUser">Usuario: Administrador</span>
+      </div>
+
+      <h1>🛡️ Identificador de Intrusos - Firewall</h1>
+
+      <!-- Navigation -->
+      <div class="nav">
+        <button
+          id="showScripts"
+          class="btn waves-effect waves-light grey darken-1"
+        >
+          <i class="material-icons left">code</i>Scripts
+        </button>
+        <button
+          id="showLogs"
+          class="btn waves-effect waves-light blue darken-1"
+        >
+          <i class="material-icons left">list</i>Logs
+        </button>
+        <button
+          id="showSalidaIpsLogs"
+          class="btn waves-effect waves-light green darken-1"
+        >
+          <i class="material-icons left">visibility</i>IPs Detectadas
+        </button>
+        <button
+          id="showFirewall"
+          class="btn waves-effect waves-light red darken-1"
+        >
+          <i class="material-icons left">security</i>Firewall
+        </button>
+      </div>
+    </div>
+
+    <!-- React App Container -->
+    <div class="firewall-container">
+      <div id="firewall-dashboard-root">
+        <!-- Loading state -->
+        <div class="flex items-center justify-center h-64">
+          <div class="pulse">
+            <div
+              class="inline-block h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"
+            ></div>
+          </div>
+          <span class="ml-3 text-gray-600"
+            >Inicializando Dashboard de Firewall...</span
+          >
+        </div>
+      </div>
+    </div>
+
+    <!-- React and ReactDOM from CDN -->
+    <script
+      crossorigin
+      src="https://unpkg.com/react@18/umd/react.development.js"
+    ></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"
+    ></script>
+
+    <!-- Compiled React Component -->
+    <script src="../../dist/firewallDashboard.bundle.js"></script>
+
+    <!-- Navigation and Initialization Script -->
+    <script>
+      // Navigation handlers
+      document.getElementById("showScripts").addEventListener("click", () => {
+        window.electronAPI.navigateToScripts();
+      });
+
+      document.getElementById("showLogs").addEventListener("click", () => {
+        window.electronAPI.navigateToLogs();
+      });
+
+      document
+        .getElementById("showSalidaIpsLogs")
+        .addEventListener("click", () => {
+          window.electronAPI.navigateToLogs();
+        });
+
+      // Initialize React component when page loads
+      document.addEventListener("DOMContentLoaded", () => {
+        const root = ReactDOM.createRoot(
+          document.getElementById("firewall-dashboard-root")
+        );
+        root.render(React.createElement(window.FirewallDashboard));
+      });
+
+      // Handle app opened event
+      window.electronAPI.onAppOpened(() => {
+        console.log("Firewall dashboard opened");
+      });
+
+      // Handle user login
+      window.electronAPI.onUserLoggedIn((username) => {
+        document.getElementById(
+          "loggedInUser"
+        ).textContent = `Usuario: ${username}`;
+      });
+    </script>
+
+    <!-- Materialize JS for navigation buttons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+  </body>
+</html>

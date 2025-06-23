@@ -100,6 +100,10 @@ document.getElementById('exactMatch').addEventListener('change', () => {
     document.getElementById('searchCount').textContent = `Resultados encontrados: ${filteredRows.length}`;
 });
 
+document.getElementById('showFirewall')?.addEventListener('click', () => {
+    window.electronAPI.navigateToFirewall();
+});
+
 // Función para formatear la fecha
 function formatDate(dateString) {
     const date = new Date(dateString);

@@ -6,8 +6,11 @@ const sequelize = require('./db/config/db');
 const User = require('./db/models/User');
 const scanForIpIn4625 = require('./src/utils/scanForIpIn4625');
 
-const userDataPath = app.getPath('userData');
+// Importar el FirewallManager
+const FirewallManager = require('./src/utils/firewallManager');
+const firewallManager = new FirewallManager();
 
+const userDataPath = app.getPath('userData');
 
 // Habilitar recarga automática en desarrollo
 if (process.env.NODE_ENV === 'development') {
@@ -20,25 +23,26 @@ if (process.env.NODE_ENV === 'development') {
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf-8'));
 const environment = process.env.NODE_ENV || 'development';
 const scriptRoot = config[environment].scriptRoot;
-const logRoot = path.join(userDataPath, 'logs'); // Guardar los logs en la carpeta de datos del usuario
-//const logRoot = config[environment].logRoot;
+const logRoot = path.join(userDataPath, 'logs');
 const configRoot = config[environment].configRoot;
 
 function createWindow() {
     const mainWindow = new BrowserWindow({
-        width: 1100,
-        height: 800,
-        minWidth: 800,
-        minHeight: 600,
+        width: 1200,
+        height: 900,
+        minWidth: 1000,
+        minHeight: 700,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
             enableRemoteModule: false,
-            nodeIntegration: false
+            nodeIntegration: false,
+            webSecurity: false // Necesario para cargar React desde CDN
         },
-        autoHideMenuBar: true // Ocultar la barra de menú automáticamente
+        autoHideMenuBar: true,
+        icon: path.join(__dirname, 'hacker.ico') // Si tienes un icono
     });
-    //mainWindow.maximize();
+
     mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'main.html')).catch((err) => {
         console.error('Error loading main.html:', err);
     });
@@ -47,12 +51,15 @@ function createWindow() {
 
     mainWindow.webContents.on('did-finish-load', () => {
         console.log('La aplicación se ha abierto.');
+        mainWindow.webContents.send('user-logged-in', 'admin');
     });
 
-    /*   if (process.env.NODE_ENV === 'development') {
+    // En desarrollo, abrir DevTools
+    if (process.env.NODE_ENV === 'development') {
         mainWindow.webContents.openDevTools();
-        } */
-    return mainWindow; // Asegúrate de devolver la instancia de la ventana
+    }
+
+    return mainWindow;
 }
 
 app.whenReady().then(async () => {
@@ -73,7 +80,6 @@ app.whenReady().then(async () => {
         console.log('Verificando si el usuario "admin" ya existe...');
         const existingUser = await User.findOne({ where: { username: 'admin' } });
         if (!existingUser) {
-            // Crear un nuevo usuario si no existe
             console.log('Creando un nuevo usuario "admin"...');
             const newUser = await User.create({ username: 'admin', password: 'admin' });
             console.log('New user created:', newUser.toJSON());
@@ -84,10 +90,7 @@ app.whenReady().then(async () => {
         // Crear la ventana principal
         const mainWindow = createWindow();
 
-        mainWindow.webContents.on('did-finish-load', () => {
-            mainWindow.webContents.send('user-logged-in', 'admin');
-        });
-
+        // Handlers de navegación
         ipcMain.handle('navigate-to-scripts', () => {
             mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'scriptsView.html')).catch((err) => {
                 console.error('Error loading scriptsView.html:', err);
@@ -100,9 +103,14 @@ app.whenReady().then(async () => {
             });
         });
 
+        ipcMain.handle('navigate-to-firewall', () => {
+            mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'firewallView.html')).catch((err) => {
+                console.error('Error loading firewallView.html:', err);
+            });
+        });
+
     } catch (error) {
         console.error('Unable to connect to the database:', error);
-        // Crear la ventana principal incluso si hay un error de conexión a la base de datos
         createWindow();
     }
 
@@ -122,16 +130,23 @@ app.on('window-all-closed', () => {
 // Manejar errores globales
 process.on('uncaughtException', (error) => {
     console.error('Uncaught Exception:', error);
+    if (!fs.existsSync(logRoot)) {
+        fs.mkdirSync(logRoot, { recursive: true });
+    }
     fs.writeFileSync(path.join(logRoot, 'error.log'), `Uncaught Exception: ${error.message}\n${error.stack}`);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection:', reason);
+    if (!fs.existsSync(logRoot)) {
+        fs.mkdirSync(logRoot, { recursive: true });
+    }
     fs.writeFileSync(path.join(logRoot, 'error.log'), `Unhandled Rejection: ${reason}\n${promise}`);
 });
 
+// ================ HANDLERS EXISTENTES ================
 
-// Manejar la comunicación con el proceso de renderizado
+// Manejar la ejecución de scripts
 ipcMain.handle('run-script', async (event, scriptName) => {
     const scriptPath = path.join(scriptRoot, scriptName);
     const logPath = logRoot;
@@ -167,27 +182,17 @@ ipcMain.handle('run-script', async (event, scriptName) => {
     });
 });
 
-/*   try {
-       const logData = await scanForIpIn4625(logPath, configPath);
-       event.sender.send('log-data', logData);
-       return Promise.resolve();
-   } catch (error) {
-       event.sender.send('log-error', error.message);
-       return Promise.reject(error);
-   } */
-
+// Cargar contenido de logs
 ipcMain.on('load-log-content', (event) => {
     const logFilePath = path.join(logRoot, 'registro_intentos.csv');
 
-    // Asegurarse de que el directorio del archivo de log exista
     const logDir = path.dirname(logFilePath);
     if (!fs.existsSync(logDir)) {
         fs.mkdirSync(logDir, { recursive: true });
     }
 
-    // Asegurarse de que el archivo de log exista
     if (!fs.existsSync(logFilePath)) {
-        fs.writeFileSync(logFilePath, '');
+        fs.writeFileSync(logFilePath, 'IP,Fecha,Usuario,TipoInicioSesion,CodigoError,Dominio,NombreEquipo\n');
     }
 
     fs.readFile(logFilePath, 'utf-8', (err, data) => {
@@ -207,7 +212,6 @@ ipcMain.on('load-log-content2', (event) => {
         fs.mkdirSync(logDir, { recursive: true });
     }
 
-    // Asegurarse de que el archivo de log exista
     if (!fs.existsSync(logFilePath)) {
         fs.writeFileSync(logFilePath, '');
     }
@@ -221,6 +225,7 @@ ipcMain.on('load-log-content2', (event) => {
     });
 });
 
+// Login handler
 ipcMain.handle('login', async (event, username, password) => {
     console.log(`Intentando iniciar sesión con usuario: ${username}`);
     try {
@@ -236,4 +241,102 @@ ipcMain.handle('login', async (event, username, password) => {
         console.error('Error during login:', error);
         return { success: false };
     }
+});
+
+// ================ NUEVOS HANDLERS DE FIREWALL ================
+
+// Obtener IPs bloqueadas en el firewall
+ipcMain.handle('get-blocked-ips', async (event) => {
+    try {
+        console.log('Obteniendo IPs bloqueadas del firewall...');
+        const result = await firewallManager.getBlockedIPs();
+        console.log(`Resultado: ${result.success ? 'Éxito' : 'Error'}`);
+        return result;
+    } catch (error) {
+        console.error('Error al obtener IPs bloqueadas:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+});
+
+// Obtener estadísticas del firewall
+ipcMain.handle('get-firewall-stats', async (event) => {
+    try {
+        console.log('Obteniendo estadísticas del firewall...');
+        const stats = await firewallManager.getFirewallStats();
+        return {
+            success: true,
+            data: stats
+        };
+    } catch (error) {
+        console.error('Error al obtener estadísticas del firewall:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+});
+
+// Eliminar IP específica del firewall
+ipcMain.handle('remove-ip-from-firewall', async (event, ip) => {
+    try {
+        console.log(`Eliminando IP ${ip} del firewall...`);
+        const result = await firewallManager.removeIPFromFirewall(ip);
+        console.log(`Resultado: ${result.success ? 'Éxito' : 'Error'}`);
+        return result;
+    } catch (error) {
+        console.error('Error al eliminar IP del firewall:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+});
+
+// Obtener información geográfica de IPs
+ipcMain.handle('get-ip-geolocation', async (event, ip) => {
+    try {
+        const result = await firewallManager.getIPGeolocation(ip);
+        return result;
+    } catch (error) {
+        console.error('Error al obtener geolocalización:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+});
+
+// Verificar si la aplicación tiene permisos de administrador
+ipcMain.handle('check-admin-privileges', async (event) => {
+    return new Promise((resolve) => {
+        const ps = spawn('powershell.exe', [
+            '-Command',
+            '([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")'
+        ]);
+
+        let output = '';
+        ps.stdout.on('data', (data) => {
+            output += data.toString().trim();
+        });
+
+        ps.on('close', (code) => {
+            const isAdmin = output.toLowerCase() === 'true';
+            console.log(`Permisos de administrador: ${isAdmin ? 'SÍ' : 'NO'}`);
+            resolve({
+                isAdmin: isAdmin,
+                message: isAdmin ? 'Running with administrator privileges' : 'Administrator privileges required'
+            });
+        });
+
+        ps.on('error', (error) => {
+            console.error('Error checking admin privileges:', error);
+            resolve({
+                isAdmin: false,
+                message: 'Error checking privileges'
+            });
+        });
+    });
 });
