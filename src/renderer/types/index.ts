@@ -74,8 +74,10 @@ export interface ElectronAPI {
   getIPGeolocation(ip: string): Promise<APIResponse<GeoData>>;
 
   // Scripts
-  runScript(scriptName: string): Promise<APIResponse<{ output: string }>>;
-  getScriptStatus(): Promise<APIResponse<{ isRunning: boolean }>>;
+  runScript: (scriptName: string) => Promise<APIResponse<any>>;
+  getScriptStatus: () => Promise<
+    APIResponse<{ isRunning: boolean; lastRun: string; interval: number }>
+  >;
   stopScript(): Promise<APIResponse<void>>;
 
   // Logs

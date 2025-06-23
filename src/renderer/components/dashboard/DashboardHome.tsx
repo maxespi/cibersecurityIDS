@@ -1,9 +1,9 @@
 // src/renderer/components/dashboard/DashboardHome.tsx
 import React from 'react';
 import { Code, FileText, Shield, Eye, Activity, Clock, AlertTriangle } from 'lucide-react';
-import { ActiveView } from '@types/index';
-import LogsComponent from '@components/shared/LogsComponent';
 import StatsCard from './StatsCard';
+import { ActiveView } from '@/renderer/types';
+import LogsComponent from '../shared/LogsComponent';
 
 interface DashboardHomeProps {
     onNavigate: (view: ActiveView) => void;
@@ -149,7 +149,7 @@ const DashboardHome: React.FC<DashboardHomeProps> = ({ onNavigate }) => {
                 </div>
             </div>
 
-            <style jsx>{`
+            {/*  <style jsx>{`
         .glass-effect {
           background: rgba(255, 255, 255, 0.1);
           backdrop-filter: blur(10px);
@@ -183,7 +183,7 @@ const DashboardHome: React.FC<DashboardHomeProps> = ({ onNavigate }) => {
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: rgba(255, 255, 255, 0.5);
         }
-      `}</style>
+      `}</style> */}
         </div>
     );
 };

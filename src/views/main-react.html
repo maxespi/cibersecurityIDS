@@ -126,10 +126,10 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 
     <!-- Compiled React App -->
-    <script src="../../dist/simpleApp.bundle.js"></script>
-    <script src="../../dist/basicApp.bundle.js"></script>
-    <script src="../../dist/appWrapper.bundle.js"></script>
     <script src="../../dist/app.bundle.js"></script>
+
+    <!-- NO INCLUIR mainRenderer.js ya que está integrado en React -->
+    <!-- <script src="../renderer/mainRenderer.js"></script> -->
 
     <!-- Initialization Script -->
     <script>
@@ -148,37 +148,13 @@
               document.getElementById("app-root")
             );
 
-            // Verificar versiones de React
-            console.log("React version:", React.version);
-            console.log("ReactDOM version:", ReactDOM.version);
-
-            // Intentar cargar componentes en orden de complejidad
-            if (typeof BasicApp !== "undefined") {
-              console.log("Cargando BasicApp (con navegación)...");
-              root.render(React.createElement(BasicApp));
-            } else if (typeof window.BasicApp !== "undefined") {
-              console.log("Cargando BasicApp desde window...");
-              root.render(React.createElement(window.BasicApp));
-            } else if (typeof SimpleApp !== "undefined") {
-              console.log("Cargando SimpleApp (sin hooks)...");
-              root.render(React.createElement(SimpleApp));
-            } else if (typeof window.SimpleApp !== "undefined") {
-              console.log("Cargando SimpleApp desde window...");
-              root.render(React.createElement(window.SimpleApp));
-            } else if (typeof AppWrapper !== "undefined") {
-              console.log("Cargando AppWrapper...");
-              root.render(React.createElement(AppWrapper));
-            } else if (typeof window.AppWrapper !== "undefined") {
-              console.log("Cargando AppWrapper desde window...");
-              root.render(React.createElement(window.AppWrapper));
-            } else if (typeof App !== "undefined") {
-              console.log("Cargando App principal...");
+            // Verificar que el componente App esté disponible
+            if (typeof App !== "undefined") {
               root.render(React.createElement(App));
             } else if (typeof window.App !== "undefined") {
-              console.log("Cargando App desde window...");
               root.render(React.createElement(window.App));
             } else {
-              throw new Error("Ningún componente React encontrado");
+              throw new Error("Componente App no encontrado en el bundle");
             }
 
             console.log("CyberGuard IDS iniciado correctamente");

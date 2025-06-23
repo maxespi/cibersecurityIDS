@@ -71,11 +71,11 @@ const Navigation: React.FC<NavigationProps> = ({ activeView, onViewChange }) => 
                 ))}
             </div>
 
-            <style jsx>{`
+            {/*  <style jsx>{`
         .hover\\:scale-102:hover {
           transform: scale(1.02);
         }
-      `}</style>
+      `}</style> */}
         </nav>
     );
 };

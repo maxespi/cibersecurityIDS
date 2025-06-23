@@ -62,15 +62,16 @@ export const useLogs = (logType?: LogType, limit?: number) => {
   useEffect(() => {
     fetchLogs();
 
-    // Suscribirse a actualizaciones en tiempo real
-    const unsubscribe = window.electronAPI.onLogUpdate((newLog: LogEntry) => {
-      // Solo agregar si coincide con el tipo de log o si no hay filtro
-      if (!logType || newLog.source === logType) {
-        addLog(newLog);
-      }
-    });
+    // Verificar que onLogUpdate existe antes de usarlo
+    if (window.electronAPI && window.electronAPI.onLogUpdate) {
+      const unsubscribe = window.electronAPI.onLogUpdate((newLog: LogEntry) => {
+        if (!logType || newLog.source === logType) {
+          addLog(newLog);
+        }
+      });
 
-    return unsubscribe;
+      return typeof unsubscribe === "function" ? unsubscribe : undefined;
+    }
   }, [fetchLogs, logType, addLog]);
 
   return {

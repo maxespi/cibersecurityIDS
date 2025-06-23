@@ -5,9 +5,6 @@ module.exports = {
     devtool: process.env.NODE_ENV === 'development' ? 'source-map' : false,
     entry: {
         app: './src/renderer/App.tsx',
-        appWrapper: './src/renderer/AppWrapper.tsx',
-        simpleApp: './src/renderer/SimpleApp.tsx',
-        basicApp: './src/renderer/BasicApp.tsx'
     },
     output: {
         path: path.resolve(__dirname, 'dist'),

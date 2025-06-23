@@ -342,3 +342,26 @@ ipcMain.handle('check-admin-privileges', async (event) => {
         });
     });
 });
+
+// ================ AGREGAR ESTE HANDLER ================
+// Obtener estado del script
+ipcMain.handle('get-script-status', async (event) => {
+    try {
+        // Aquí puedes implementar la lógica para verificar si el script está ejecutándose
+        // Por ejemplo, verificar si hay un proceso activo o una variable de estado
+        return {
+            success: true,
+            data: {
+                isRunning: false, // Cambiar según tu lógica
+                lastRun: new Date().toISOString(),
+                interval: 30
+            }
+        };
+    } catch (error) {
+        console.error('Error getting script status:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+});

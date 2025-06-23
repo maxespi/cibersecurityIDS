@@ -1,65 +1,31 @@
 // src/renderer/components/scripts/ScriptControl.tsx
 import React, { useState, useEffect } from 'react';
 import { Play, Square, Settings, RefreshCw, Clock, Shield } from 'lucide-react';
-import { ScriptConfig } from '@types/index';
-import LogsComponent from '@components/shared/LogsComponent';
+import { ScriptConfig } from '@/renderer/types';
+import LogsComponent from '../shared/LogsComponent';
 
-const ScriptControl: React.FC = () => {
-    const [isRunning, setIsRunning] = useState(false);
+const ScriptControl: React.FC<{ electronAPI: any }> = ({ electronAPI }) => {
     const [config, setConfig] = useState<ScriptConfig>({
         interval: 30,
         enabled: false,
         runOnce: false,
         autoFirewall: true
     });
-    const [scriptOutput, setScriptOutput] = useState<string[]>([]);
 
-    useEffect(() => {
-        // Verificar estado inicial del script
-        checkScriptStatus();
+    // ✅ USAR directamente el estado del hook
+    const isRunning = electronAPI.scriptState.isRunning;
+    const scriptOutput = electronAPI.scriptState.logs;
 
-        // Escuchar salida del script
-        const unsubscribe = window.electronAPI.onScriptOutput((output: string) => {
-            setScriptOutput(prev => [output, ...prev.slice(0, 49)]); // Mantener últimas 50 líneas
-        });
-
-        return unsubscribe;
-    }, []);
-
-    const checkScriptStatus = async () => {
-        try {
-            const result = await window.electronAPI.getScriptStatus();
-            if (result.success) {
-                setIsRunning(result.data.isRunning);
-            }
-        } catch (error) {
-            console.error('Error checking script status:', error);
-        }
+    const handleStartScript = () => {
+        electronAPI.startScriptExecution(config.interval);
     };
 
-    const handleStartScript = async () => {
-        try {
-            const result = await window.electronAPI.runScript('scanForIpIn4625.ps1');
-            if (result.success) {
-                setIsRunning(true);
-                setScriptOutput(prev => [`Script iniciado: ${new Date().toLocaleTimeString()}`, ...prev]);
-            }
-        } catch (error) {
-            console.error('Error starting script:', error);
-            setScriptOutput(prev => [`Error al iniciar script: ${error}`, ...prev]);
-        }
+    const handleStopScript = () => {
+        electronAPI.stopScriptExecution();
     };
 
-    const handleStopScript = async () => {
-        try {
-            const result = await window.electronAPI.stopScript();
-            if (result.success) {
-                setIsRunning(false);
-                setScriptOutput(prev => [`Script detenido: ${new Date().toLocaleTimeString()}`, ...prev]);
-            }
-        } catch (error) {
-            console.error('Error stopping script:', error);
-        }
+    const handleSingleScan = () => {
+        electronAPI.executeSingleScan();
     };
 
     const handleConfigChange = (key: keyof ScriptConfig, value: any) => {
@@ -121,10 +87,9 @@ const ScriptControl: React.FC = () => {
                         <div className="pt-4 space-y-3">
                             <button
                                 onClick={isRunning ? handleStopScript : handleStartScript}
-                                disabled={false}
                                 className={`w-full flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all ${isRunning
-                                    ? 'bg-red-500 hover:bg-red-600 text-white'
-                                    : 'bg-green-500 hover:bg-green-600 text-white'
+                                        ? 'bg-red-500 hover:bg-red-600 text-white'
+                                        : 'bg-green-500 hover:bg-green-600 text-white'
                                     }`}
                             >
                                 {isRunning ? (
@@ -141,11 +106,11 @@ const ScriptControl: React.FC = () => {
                             </button>
 
                             <button
-                                onClick={checkScriptStatus}
+                                onClick={handleSingleScan}
                                 className="w-full flex items-center justify-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all"
                             >
                                 <RefreshCw className="w-4 h-4 mr-2" />
-                                Verificar Estado
+                                Escaneo Único
                             </button>
                         </div>
                     </div>
@@ -165,6 +130,17 @@ const ScriptControl: React.FC = () => {
                                 <div className={`w-3 h-3 rounded-full ${isRunning ? 'bg-green-500' : 'bg-gray-500'}`}></div>
                                 <span className="text-sm text-white">
                                     {isRunning ? 'Activo' : 'Inactivo'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="bg-white bg-opacity-10 rounded-lg p-4">
+                            <h4 className="text-sm font-medium text-white mb-2">Sistema</h4>
+                            <div className="flex items-center space-x-2">
+                                <div className={`w-3 h-3 rounded-full ${electronAPI.systemStatus.firewallEnabled ? 'bg-green-500' : 'bg-red-500'
+                                    }`}></div>
+                                <span className="text-sm text-white">
+                                    Firewall: {electronAPI.systemStatus.firewallEnabled ? 'Activo' : 'Inactivo'}
                                 </span>
                             </div>
                         </div>
@@ -243,32 +219,6 @@ const ScriptControl: React.FC = () => {
                     showControls={true}
                 />
             </div>
-
-            <style jsx>{`
-        .glass-effect {
-          background: rgba(255, 255, 255, 0.1);
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 3px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.3);
-          border-radius: 3px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.5);
-        }
-      `}</style>
         </div>
     );
 };

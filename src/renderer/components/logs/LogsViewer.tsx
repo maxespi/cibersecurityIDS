@@ -1,9 +1,8 @@
 // src/renderer/components/logs/LogsViewer.tsx
 import React, { useState } from 'react';
 import { Search, Filter, Download, RefreshCw, Calendar, User, Terminal, Activity } from 'lucide-react';
-import { LogType } from '@types/index';
 import { useLogs } from '@hooks/useLogs';
-import LogsComponent from '@components/shared/LogsComponent';
+import { LogType } from '@/renderer/types';
 
 const LogsViewer: React.FC = () => {
     const [activeFilter, setActiveFilter] = useState<LogType | 'all'>('all');
@@ -292,13 +291,13 @@ const LogsViewer: React.FC = () => {
                 )}
             </div>
 
-            <style jsx>{`
+            {/*    <style jsx>{`
         .glass-effect {
           background: rgba(255, 255, 255, 0.1);
           backdrop-filter: blur(10px);
           border: 1px solid rgba(255, 255, 255, 0.2);
         }
-      `}</style>
+      `}</style> */}
         </div>
     );
 };

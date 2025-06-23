@@ -231,7 +231,7 @@ const LogsComponent: React.FC<LogsComponentProps> = ({
                 )}
             </div>
 
-            <style jsx>{`
+            {/*     <style jsx>{`
         .glass-effect {
           background: rgba(255, 255, 255, 0.1);
           backdrop-filter: blur(10px);
@@ -256,19 +256,17 @@ const LogsComponent: React.FC<LogsComponentProps> = ({
           background: rgba(255, 255, 255, 0.5);
         }
 
-        /* Animaciones adicionales */
         .custom-scrollbar {
           scrollbar-width: thin;
           scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
         }
 
-        /* Estados de hover para entradas de log */
         .custom-scrollbar > div > div:hover {
           background-color: rgba(255, 255, 255, 0.05);
           border-radius: 4px;
           transition: background-color 0.2s ease;
         }
-      `}</style>
+      `}</style> */}
         </div>
     );
 };

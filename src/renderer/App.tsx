@@ -1,48 +1,85 @@
 // src/renderer/App.tsx
 import React, { useState, useEffect } from 'react';
-import { ActiveView } from '@types/index';
-import Header from '@components/layout/Header';
-import Navigation from '@components/layout/Navigation';
-import DashboardHome from '@components/dashboard/DashboardHome';
-import ScriptControl from '@components/scripts/ScriptControl';
-import LogsViewer from '@components/logs/LogsViewer';
-import FirewallDashboard from '@components/firewall/FirewallDashboard';
+import Header from './components/layout/Header';
+import Navigation from './components/layout/Navigation';
+import DashboardHome from './components/dashboard/DashboardHome';
+import FirewallDashboard from './components/firewall/FirewallDashboard';
+import ScriptControl from './components/scripts/ScriptControl';
+import LogsViewer from './components/logs/LogsViewer';
+
+import { ActiveView } from './types';
+import { useElectronAPI } from './hooks/useElectronAPI';
 
 const App: React.FC = () => {
     const [activeView, setActiveView] = useState<ActiveView>('dashboard');
 
+    // Integrar todas las funcionalidades de mainRenderer
+    const electronAPI = useElectronAPI();
+
     useEffect(() => {
-        // Notificar que la app se ha abierto
-        window.electronAPI.onAppOpened(() => {
-            console.log('CyberGuard IDS iniciado');
-        });
+        // Inicialización adicional si es necesaria
+        console.log('CyberGuard IDS React App iniciado con API completa');
     }, []);
 
     const renderCurrentView = () => {
         switch (activeView) {
             case 'dashboard':
-                return <DashboardHome onNavigate={setActiveView} />;
+                return (
+                    <DashboardHome
+                        onNavigate={setActiveView}
+                        electronAPI={electronAPI}
+                    />
+                );
             case 'scripts':
-                return <ScriptControl />;
+                return (
+                    <ScriptControl
+                        electronAPI={electronAPI}
+                    />
+                );
             case 'logs':
-                return <LogsViewer />;
+                return (
+                    <LogsViewer
+                        electronAPI={electronAPI}
+                    />
+                );
             case 'firewall':
                 return <FirewallDashboard />;
             default:
-                return <DashboardHome onNavigate={setActiveView} />;
+                return (
+                    <DashboardHome
+                        onNavigate={setActiveView}
+                        electronAPI={electronAPI}
+                    />
+                );
         }
     };
 
     return (
         <div className="min-h-screen app-background">
             <Header />
-            <Navigation activeView={activeView} onViewChange={setActiveView} />
+            <Navigation
+                activeView={activeView}
+                onViewChange={setActiveView}
+                electronAPI={electronAPI}
+            />
 
             <main className="max-w-7xl mx-auto px-6 pb-8">
                 {renderCurrentView()}
             </main>
 
-            {/* Footer */}
+            {/* System Status Bar */}
+            <div className="fixed bottom-4 right-4 glass-effect rounded-lg p-3 text-sm text-white">
+                <div className="flex items-center space-x-4">
+                    <span className={`w-2 h-2 rounded-full ${electronAPI.systemStatus.firewallEnabled ? 'bg-green-400' : 'bg-red-400'
+                        }`}></span>
+                    <span>Firewall: {electronAPI.systemStatus.firewallEnabled ? 'Activo' : 'Inactivo'}</span>
+
+                    <span className={`w-2 h-2 rounded-full ${electronAPI.scriptState.isRunning ? 'bg-blue-400' : 'bg-gray-400'
+                        }`}></span>
+                    <span>Script: {electronAPI.scriptState.isRunning ? 'Ejecutándose' : 'Detenido'}</span>
+                </div>
+            </div>
+
             <footer className="mt-12 pb-8">
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="glass-effect rounded-xl p-4 text-center">
@@ -54,19 +91,6 @@ const App: React.FC = () => {
                     </div>
                 </div>
             </footer>
-
-            <style jsx>{`
-        .app-background {
-          background: linear-gradient(135deg, #1e3a8a 0%, #7c3aed 50%, #1e40af 100%);
-          min-height: 100vh;
-        }
-
-        .glass-effect {
-          background: rgba(255, 255, 255, 0.1);
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-      `}</style>
         </div>
     );
 };

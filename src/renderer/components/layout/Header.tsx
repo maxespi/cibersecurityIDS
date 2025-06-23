@@ -10,12 +10,15 @@ const Header: React.FC<HeaderProps> = ({ className = '' }) => {
     const [username, setUsername] = useState<string>('No logueado');
 
     useEffect(() => {
-        // Escuchar eventos de login
-        const unsubscribe = window.electronAPI.onUserLoggedIn((user: string) => {
-            setUsername(user);
-        });
+        // Verificar que la función existe antes de usarla
+        if (window.electronAPI && window.electronAPI.onUserLoggedIn) {
+            const unsubscribe = window.electronAPI.onUserLoggedIn((user: string) => {
+                setUsername(user);
+            });
 
-        return unsubscribe;
+            // Asegurar que retorna una función de cleanup válida
+            return typeof unsubscribe === 'function' ? unsubscribe : undefined;
+        }
     }, []);
 
     return (
@@ -46,33 +49,6 @@ const Header: React.FC<HeaderProps> = ({ className = '' }) => {
                     </div>
                 </div>
             </div>
-
-            <style jsx>{`
-        .glass-effect {
-          background: rgba(255, 255, 255, 0.1);
-          backdrop-filter: blur(10px);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .pulse-ring {
-          animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-          0% {
-            transform: scale(0.95);
-            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
-          }
-          70% {
-            transform: scale(1);
-            box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
-          }
-          100% {
-            transform: scale(0.95);
-            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
-          }
-        }
-      `}</style>
         </header>
     );
 };
