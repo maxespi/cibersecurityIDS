@@ -192,119 +192,147 @@ ipcMain.handle('run-script', async (event, scriptName) => {
 
 async function executeIPAnalysis(event) {
     try {
-        event.sender.send('log-data', 'Iniciando análisis de eventos 4625...');
+        event.sender.send('log-data', 'Iniciando análisis nativo de eventos 4625...');
 
-        // Usar la función JavaScript nativa
-        const result = await scanForIpIn4625(logRoot, configRoot);
+        // Usar la función JavaScript completamente nativa
+        const result = await scanForIpIn4625();
 
-        event.sender.send('log-data', 'Análisis de eventos completado');
-        event.sender.send('log-data', `Resultado: ${result}`);
+        if (result.success) {
+            event.sender.send('log-data', `✅ Análisis completado: ${result.data.events} eventos procesados`);
+            event.sender.send('log-data', `🛡️ IPs nuevas detectadas: ${result.data.newIPs.length}`);
 
-        // Leer IPs detectadas del archivo generado
-        const ipsFile = path.join(logRoot, 'salida_ips.txt');
-        let detectedIPs = [];
-
-        if (fs.existsSync(ipsFile)) {
-            const ipsContent = fs.readFileSync(ipsFile, 'utf-8');
-            detectedIPs = ipsContent.split('\n').filter(ip => ip.trim());
-
-            event.sender.send('log-data', `IPs detectadas: ${detectedIPs.length}`);
-
-            // Enviar IPs detectadas al frontend
-            if (detectedIPs.length > 0) {
-                event.sender.send('log-data', `Nuevas IPs: ${detectedIPs.slice(-5).join(', ')}`);
+            if (result.data.newIPs.length > 0) {
+                event.sender.send('log-data', `📋 Nuevas IPs: ${result.data.newIPs.slice(0, 5).join(', ')}${result.data.newIPs.length > 5 ? '...' : ''}`);
             }
+
+            return {
+                success: true,
+                detectedIPs: result.data.newIPs,
+                totalEvents: result.data.events,
+                whitelistFiltered: result.data.whitelistFiltered,
+                timestamp: result.data.timestamp
+            };
+        } else {
+            throw new Error(result.error || result.message);
         }
 
-        return {
-            detectedIPs: detectedIPs,
-            totalEvents: 'Procesados exitosamente',
-            logFile: path.join(logRoot, 'registro_intentos.csv')
-        };
-
     } catch (error) {
-        event.sender.send('log-error', `Error en análisis de IPs: ${error.message}`);
-        throw error;
+        event.sender.send('log-error', `❌ Error en análisis nativo: ${error.message}`);
+        return {
+            success: false,
+            error: error.message,
+            detectedIPs: [],
+            totalEvents: 0
+        };
     }
 }
 
 // ✅ FUNCIÓN PARA EXTRACCIÓN DE IPs (reemplaza extraer_ips_4625.ps1)
 async function executeIPExtraction(event) {
     try {
-        event.sender.send('log-data', 'Iniciando extracción rápida de IPs...');
+        event.sender.send('log-data', 'Iniciando extracción nativa de IPs...');
 
-        // Esta función puede usar una versión simplificada del scanForIpIn4625
-        // o implementar lógica específica para extracción rápida
-        const result = await scanForIpIn4625(logRoot, configRoot);
+        // Usar la misma función nativa (es la misma operación)
+        const result = await scanForIpIn4625();
 
-        event.sender.send('log-data', 'Extracción de IPs completada');
+        if (result.success) {
+            event.sender.send('log-data', '✅ Extracción completada');
 
-        return {
-            extractedIPs: result,
-            operation: 'IP extraction'
-        };
+            return {
+                success: true,
+                extractedIPs: result.data.newIPs,
+                operation: 'native IP extraction',
+                events: result.data.events
+            };
+        } else {
+            throw new Error(result.error || result.message);
+        }
 
     } catch (error) {
-        event.sender.send('log-error', `Error en extracción de IPs: ${error.message}`);
-        throw error;
+        event.sender.send('log-error', `❌ Error en extracción nativa: ${error.message}`);
+        return {
+            success: false,
+            error: error.message,
+            extractedIPs: []
+        };
     }
 }
 
 // ✅ FUNCIÓN PARA ACTUALIZACIÓN DE FIREWALL (reemplaza BlockIpAndUpdateForOneRule.ps1)
 async function executeFirewallUpdate(event) {
     try {
-        event.sender.send('log-data', 'Iniciando actualización del firewall...');
+        event.sender.send('log-data', 'Iniciando actualización nativa del firewall...');
 
-        // Leer IPs detectadas
-        const ipsFile = path.join(logRoot, 'salida_ips.txt');
+        // 1. Obtener IPs detectadas desde SQLite (no desde archivos)
+        const detectedIPs = await DetectedIP.findAll({
+            where: {
+                status: 'detected',
+                ip: { [Op.ne]: null }
+            },
+            attributes: ['ip']
+        });
 
-        if (!fs.existsSync(ipsFile)) {
-            throw new Error('No hay archivo de IPs detectadas. Ejecute primero el análisis.');
+        const ipsArray = detectedIPs.map(entry => entry.ip);
+
+        if (ipsArray.length === 0) {
+            event.sender.send('log-data', 'ℹ️ No hay IPs detectadas para bloquear');
+            return {
+                success: true,
+                blockedIPs: [],
+                message: 'No hay IPs para bloquear'
+            };
         }
 
-        const ipsContent = fs.readFileSync(ipsFile, 'utf-8');
-        const detectedIPs = ipsContent.split('\n').filter(ip => ip.trim());
+        event.sender.send('log-data', `🔍 IPs candidatas para bloqueo: ${ipsArray.length}`);
 
-        if (detectedIPs.length === 0) {
-            event.sender.send('log-data', 'No hay IPs para bloquear');
-            return { blockedIPs: [], message: 'No hay IPs para bloquear' };
-        }
+        // 2. Filtrar por whitelist desde SQLite
+        const whitelistEntries = await WhitelistIP.findAll({
+            where: {
+                [Op.or]: [
+                    { expiresAt: null },
+                    { expiresAt: { [Op.gt]: new Date() } }
+                ]
+            },
+            attributes: ['ip']
+        });
 
-        event.sender.send('log-data', `Bloqueando ${detectedIPs.length} IPs...`);
-
-        // 1. Verificar whitelist desde base de datos
-        const whitelistEntries = await WhitelistIP.findAll();
         const whitelistIPs = whitelistEntries.map(entry => entry.ip);
-        const ipsToBlock = detectedIPs.filter(ip => !whitelistIPs.includes(ip));
+        const ipsToBlock = ipsArray.filter(ip => !whitelistIPs.includes(ip));
 
         if (ipsToBlock.length === 0) {
-            event.sender.send('log-data', 'Todas las IPs están en whitelist');
-            return { blockedIPs: [], message: 'Todas las IPs están en whitelist' };
+            event.sender.send('log-data', '⚪ Todas las IPs están en whitelist');
+            return {
+                success: true,
+                blockedIPs: [],
+                message: 'Todas las IPs están en whitelist'
+            };
         }
 
-        event.sender.send('log-data', `IPs a bloquear (después de whitelist): ${ipsToBlock.length}`);
+        event.sender.send('log-data', `🛡️ IPs a bloquear (después de whitelist): ${ipsToBlock.length}`);
 
-        // 2. Usar FirewallManager nativo para bloquear IPs
+        // 3. Usar FirewallManager nativo para bloquear IPs
         const firewallResult = await firewallManager.blockMultipleIPs(ipsToBlock);
 
         if (firewallResult.success) {
-            event.sender.send('log-data', `Firewall actualizado: ${ipsToBlock.length} IPs bloqueadas`);
+            event.sender.send('log-data', `✅ Firewall actualizado: ${ipsToBlock.length} IPs bloqueadas`);
 
-            // 3. Registrar en base de datos
-            for (const ip of ipsToBlock) {
-                await DetectedIP.upsert({
-                    ip: ip,
-                    attempts: 1,
+            // 4. Actualizar estado en SQLite
+            await DetectedIP.update(
+                {
                     status: 'blocked',
-                    firstDetected: new Date(),
-                    lastSeen: new Date(),
-                    source: 'auto-analysis'
-                });
-            }
+                    blockedAt: new Date()
+                },
+                {
+                    where: {
+                        ip: { [Op.in]: ipsToBlock }
+                    }
+                }
+            );
 
-            event.sender.send('log-data', 'IPs registradas en base de datos');
+            event.sender.send('log-data', '💾 Estados actualizados en base de datos');
 
             return {
+                success: true,
                 blockedIPs: ipsToBlock,
                 firewallResult: firewallResult,
                 message: `${ipsToBlock.length} IPs bloqueadas exitosamente`
@@ -314,8 +342,57 @@ async function executeFirewallUpdate(event) {
         }
 
     } catch (error) {
-        event.sender.send('log-error', `Error en actualización del firewall: ${error.message}`);
-        throw error;
+        event.sender.send('log-error', `❌ Error en actualización nativa del firewall: ${error.message}`);
+        return {
+            success: false,
+            error: error.message,
+            blockedIPs: []
+        };
+    }
+}
+
+async function getSecurityStatistics() {
+    try {
+        const stats = {
+            totalDetectedIPs: await DetectedIP.count(),
+            blockedIPs: await DetectedIP.count({ where: { status: 'blocked' } }),
+            whitelistedIPs: await WhitelistIP.count({
+                where: {
+                    [Op.or]: [
+                        { expiresAt: null },
+                        { expiresAt: { [Op.gt]: new Date() } }
+                    ]
+                }
+            }),
+            recentEvents: await WindowsEvent.count({
+                where: {
+                    eventId: 4625,
+                    timestamp: {
+                        [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000) // Últimas 24 horas
+                    }
+                }
+            }),
+            lastAnalysis: await WindowsEvent.findOne({
+                where: { eventId: 4625 },
+                order: [['timestamp', 'DESC']],
+                attributes: ['timestamp']
+            })
+        };
+
+        return {
+            success: true,
+            data: {
+                ...stats,
+                lastAnalysisTime: stats.lastAnalysis ? stats.lastAnalysis.timestamp : null
+            }
+        };
+
+    } catch (error) {
+        console.error('❌ Error obteniendo estadísticas:', error);
+        return {
+            success: false,
+            error: error.message
+        };
     }
 }
 
@@ -1067,3 +1144,4 @@ ipcMain.handle('remove-multiple-ips-from-firewall', async (event, ips) => {
         return { success: false, error: error.message };
     }
 });
+

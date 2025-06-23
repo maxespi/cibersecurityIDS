@@ -185,17 +185,15 @@
         }, 1000);
       });
 
-      // Handle app opened event
-      if (window.electronAPI) {
+      /*  if (window.electronAPI) {
         window.electronAPI.onAppOpened(() => {
           console.log("Evento de aplicación abierta recibido");
         });
 
-        // Handle user login
         window.electronAPI.onUserLoggedIn((username) => {
           console.log(`Usuario logueado: ${username}`);
         });
-      }
+      } */
     </script>
   </body>
 </html>
