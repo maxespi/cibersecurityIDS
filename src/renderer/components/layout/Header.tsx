@@ -33,7 +33,9 @@ const Header: React.FC<HeaderProps> = ({ className = '' }) => {
                             </div>
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold text-white">CyberGuard IDS</h1>
+                            <h1 className="text-2xl font-bold text-white">
+                                HADES Seguridad IDS
+                            </h1>
                             <p className="text-blue-100 text-sm">
                                 Sistema de Detección de Intrusos
                             </p>

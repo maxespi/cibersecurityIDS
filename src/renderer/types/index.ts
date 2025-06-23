@@ -49,7 +49,12 @@ export interface ScriptConfig {
   autoFirewall: boolean;
 }
 
-export type ActiveView = "dashboard" | "scripts" | "logs" | "firewall";
+export type ActiveView =
+  | "dashboard"
+  | "scripts"
+  | "logs"
+  | "firewall"
+  | "whitelist";
 export type LogType = "user" | "script" | "system";
 
 // Electron API Types

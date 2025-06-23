@@ -6,6 +6,7 @@ import DashboardHome from './components/dashboard/DashboardHome';
 import FirewallDashboard from './components/firewall/FirewallDashboard';
 import ScriptControl from './components/scripts/ScriptControl';
 import LogsViewer from './components/logs/LogsViewer';
+import WhitelistManager from './components/whitelist/WhitelistManager';
 
 import { ActiveView } from './types';
 import { useElectronAPI } from './hooks/useElectronAPI';
@@ -44,6 +45,8 @@ const App: React.FC = () => {
                 );
             case 'firewall':
                 return <FirewallDashboard />;
+            case 'whitelist':
+                return <WhitelistManager />;
             default:
                 return (
                     <DashboardHome

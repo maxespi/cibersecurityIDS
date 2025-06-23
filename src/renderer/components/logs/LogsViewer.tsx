@@ -1,49 +1,127 @@
 // src/renderer/components/logs/LogsViewer.tsx
 import React, { useState } from 'react';
-import { Search, Filter, Download, RefreshCw, Calendar, User, Terminal, Activity } from 'lucide-react';
+import { Search, Filter, Download, RefreshCw, Calendar, User, Terminal, Activity, Shield, Target } from 'lucide-react';
 import { useLogs } from '@hooks/useLogs';
 import { LogType } from '@/renderer/types';
 
-const LogsViewer: React.FC = () => {
-    const [activeFilter, setActiveFilter] = useState<LogType | 'all'>('all');
+const LogsViewer: React.FC<{ electronAPI: any }> = ({ electronAPI }) => {
+    const [activeFilter, setActiveFilter] = useState<'all' | LogType | 'windows' | 'detected-ips'>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [exactMatch, setExactMatch] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(50);
 
-    const { logs, loading, searchLogs, refetch } = useLogs(
-        activeFilter === 'all' ? undefined : activeFilter
+    // Logs de la aplicación
+    const { logs: appLogs, loading, searchLogs, refetch } = useLogs(
+        activeFilter === 'all' || activeFilter === 'windows' || activeFilter === 'detected-ips' ? undefined : activeFilter
     );
+
+    // Logs de script y Windows Events desde electronAPI
+    const scriptLogs = electronAPI.scriptState.logs || [];
+    const detectedIPs = electronAPI.scriptState.detectedIPs || [];
 
     const filterOptions = [
         { value: 'all', label: 'Todos los Logs', icon: <Activity className="w-4 h-4" /> },
         { value: 'user', label: 'Usuario', icon: <User className="w-4 h-4" /> },
         { value: 'script', label: 'Scripts', icon: <Terminal className="w-4 h-4" /> },
-        { value: 'system', label: 'Sistema', icon: <Activity className="w-4 h-4" /> }
+        { value: 'system', label: 'Sistema', icon: <Activity className="w-4 h-4" /> },
+        { value: 'windows', label: 'Eventos Windows', icon: <Shield className="w-4 h-4" /> },
+        { value: 'detected-ips', label: 'IPs Detectadas', icon: <Target className="w-4 h-4" /> }
     ];
+
+    // Combinar todos los logs según el filtro
+    const getCombinedLogs = () => {
+        let combinedLogs = [];
+
+        switch (activeFilter) {
+            case 'all':
+                // Convertir script logs a formato estándar
+                const formattedScriptLogs = scriptLogs.map((log, index) => ({
+                    id: `script-${index}`,
+                    timestamp: new Date(),
+                    level: 'info' as const,
+                    source: 'script' as const,
+                    message: log
+                }));
+
+                // Convertir IPs detectadas a logs
+                const formattedIPLogs = detectedIPs.map((ip, index) => ({
+                    id: `ip-${index}`,
+                    timestamp: new Date(),
+                    level: 'warning' as const,
+                    source: 'system' as const,
+                    message: `IP sospechosa detectada: ${ip}`
+                }));
+
+                combinedLogs = [
+                    ...appLogs,
+                    ...formattedScriptLogs,
+                    ...formattedIPLogs
+                ];
+                break;
+
+            case 'windows':
+                combinedLogs = scriptLogs.map((log, index) => ({
+                    id: `windows-${index}`,
+                    timestamp: new Date(),
+                    level: 'info' as const,
+                    source: 'system' as const,
+                    message: log
+                }));
+                break;
+
+            case 'detected-ips':
+                combinedLogs = detectedIPs.map((ip, index) => ({
+                    id: `detected-${index}`,
+                    timestamp: new Date(),
+                    level: 'warning' as const,
+                    source: 'system' as const,
+                    message: `IP detectada: ${ip}`,
+                    metadata: { ip, type: 'failed_login' }
+                }));
+                break;
+
+            default:
+                combinedLogs = appLogs.filter(log => log.source === activeFilter);
+        }
+
+        // Ordenar por timestamp descendente
+        return combinedLogs.sort((a, b) =>
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+    };
+
+    const logs = getCombinedLogs();
 
     const handleSearch = async () => {
         if (searchQuery.trim()) {
-            await searchLogs(searchQuery, exactMatch);
+            if (activeFilter === 'windows' || activeFilter === 'detected-ips') {
+                // Búsqueda local para logs de script
+                setCurrentPage(1);
+            } else {
+                await searchLogs(searchQuery, exactMatch);
+            }
         } else {
             refetch();
         }
     };
 
-    const handleFilterChange = (filter: LogType | 'all') => {
+    const handleFilterChange = (filter: typeof activeFilter) => {
         setActiveFilter(filter);
         setCurrentPage(1);
     };
 
-    const handleExport = () => {
-        // Implementar exportación de logs
-        console.log('Exportar logs');
-    };
+    // Filtrar por búsqueda si es necesario
+    const filteredLogs = searchQuery && (activeFilter === 'windows' || activeFilter === 'detected-ips')
+        ? logs.filter(log =>
+            log.message.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        : logs;
 
-    const totalPages = Math.ceil(logs.length / itemsPerPage);
+    const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    const currentLogs = logs.slice(startIndex, endIndex);
+    const currentLogs = filteredLogs.slice(startIndex, endIndex);
 
     const formatDate = (date: Date) => {
         return new Date(date).toLocaleDateString('es-ES', {
@@ -76,7 +154,7 @@ const LogsViewer: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
+            {/* Header con estadísticas */}
             <div className="glass-effect rounded-2xl p-6">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
                     <div>
@@ -84,11 +162,30 @@ const LogsViewer: React.FC = () => {
                         <p className="text-white text-opacity-70">
                             Monitoreo y análisis de eventos del sistema
                         </p>
+
+                        {/* Estadísticas rápidas */}
+                        <div className="flex space-x-6 mt-4">
+                            <div className="text-center">
+                                <div className="text-xl font-bold text-green-400">{appLogs.length}</div>
+                                <div className="text-xs text-white text-opacity-60">App Logs</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-xl font-bold text-orange-400">{scriptLogs.length}</div>
+                                <div className="text-xs text-white text-opacity-60">Script Events</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-xl font-bold text-red-400">{detectedIPs.length}</div>
+                                <div className="text-xs text-white text-opacity-60">IPs Detectadas</div>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="flex space-x-3">
                         <button
-                            onClick={refetch}
+                            onClick={() => {
+                                refetch();
+                                electronAPI.updateSystemStatus();
+                            }}
                             disabled={loading}
                             className="flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all disabled:opacity-50"
                         >
@@ -97,7 +194,16 @@ const LogsViewer: React.FC = () => {
                         </button>
 
                         <button
-                            onClick={handleExport}
+                            onClick={() => {
+                                // Exportar todos los logs combinados
+                                const dataStr = JSON.stringify(logs, null, 2);
+                                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                                const url = URL.createObjectURL(dataBlob);
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = `cyberguard-logs-${new Date().toISOString().split('T')[0]}.json`;
+                                link.click();
+                            }}
                             className="flex items-center px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-all"
                         >
                             <Download className="w-4 h-4 mr-2" />
@@ -115,7 +221,7 @@ const LogsViewer: React.FC = () => {
                         {filterOptions.map((option) => (
                             <button
                                 key={option.value}
-                                onClick={() => handleFilterChange(option.value as LogType | 'all')}
+                                onClick={() => handleFilterChange(option.value as typeof activeFilter)}
                                 className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all ${activeFilter === option.value
                                     ? 'bg-white text-blue-900'
                                     : 'bg-white bg-opacity-20 text-white hover:bg-opacity-30'
@@ -162,7 +268,7 @@ const LogsViewer: React.FC = () => {
                         </label>
 
                         <div className="text-sm text-white text-opacity-60">
-                            Mostrando {startIndex + 1}-{Math.min(endIndex, logs.length)} de {logs.length} resultados
+                            Mostrando {startIndex + 1}-{Math.min(endIndex, filteredLogs.length)} de {filteredLogs.length} resultados
                         </div>
                     </div>
                 </div>
@@ -229,6 +335,12 @@ const LogsViewer: React.FC = () => {
                                             <div className="truncate" title={log.message}>
                                                 {log.message}
                                             </div>
+                                            {/* Mostrar IP si está disponible */}
+                                            {log.metadata?.ip && (
+                                                <div className="text-xs text-orange-400 mt-1">
+                                                    IP: {log.metadata.ip}
+                                                </div>
+                                            )}
                                         </td>
                                     </tr>
                                 ))
@@ -270,7 +382,7 @@ const LogsViewer: React.FC = () => {
                                     <button
                                         onClick={() => setCurrentPage(totalPages)}
                                         className={`px-3 py-1 rounded ${currentPage === totalPages
-                                            ? 'bg-white text-blue-900'
+                                            ? 'bg-white text-blue-909'
                                             : 'bg-white bg-opacity-20 text-white hover:bg-opacity-30'
                                             } transition-all`}
                                     >
@@ -290,14 +402,6 @@ const LogsViewer: React.FC = () => {
                     </div>
                 )}
             </div>
-
-            {/*    <style jsx>{`
-        .glass-effect {
-          background: rgba(255, 255, 255, 0.1);
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-      `}</style> */}
         </div>
     );
 };

@@ -1,7 +1,7 @@
 // src/renderer/components/layout/Navigation.tsx
 import React from 'react';
-import { Code, FileText, Shield, BarChart3 } from 'lucide-react';
-import { ActiveView } from '@types/index';
+import { Code, FileText, Shield, BarChart3, Activity, Terminal, Settings, Home } from 'lucide-react';
+import { ActiveView } from '@/renderer/types';
 
 interface NavigationProps {
     activeView: ActiveView;
@@ -36,12 +36,12 @@ const Navigation: React.FC<NavigationProps> = ({ activeView, onViewChange }) => 
     const navItems = [
         {
             view: 'dashboard' as ActiveView,
-            icon: <BarChart3 className="w-4 h-4" />,
+            icon: <Home className="w-4 h-4" />,
             label: 'Dashboard'
         },
         {
             view: 'scripts' as ActiveView,
-            icon: <Code className="w-4 h-4" />,
+            icon: <Terminal className="w-4 h-4" />,
             label: 'Scripts'
         },
         {
@@ -53,8 +53,18 @@ const Navigation: React.FC<NavigationProps> = ({ activeView, onViewChange }) => 
             view: 'firewall' as ActiveView,
             icon: <Shield className="w-4 h-4" />,
             label: 'Firewall'
+        },
+        {
+            view: 'whitelist' as ActiveView,
+            icon: <Settings className="w-4 h-4" />,
+            label: 'Whitelist'
         }
     ];
+
+    const handleNavClick = (viewId: string) => {
+        console.log('🔧 Navigation click:', viewId);
+        onViewChange(viewId as ActiveView); // ✅ Usar React navigation, NO Electron
+    };
 
     return (
         <nav className="max-w-7xl mx-auto px-6 py-4">
@@ -66,16 +76,10 @@ const Navigation: React.FC<NavigationProps> = ({ activeView, onViewChange }) => 
                         label={item.label}
                         view={item.view}
                         isActive={activeView === item.view}
-                        onClick={() => onViewChange(item.view)}
+                        onClick={() => handleNavClick(item.view)}
                     />
                 ))}
             </div>
-
-            {/*  <style jsx>{`
-        .hover\\:scale-102:hover {
-          transform: scale(1.02);
-        }
-      `}</style> */}
         </nav>
     );
 };

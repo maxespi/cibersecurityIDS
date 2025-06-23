@@ -52,5 +52,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
         const unsubscribe = () => ipcRenderer.removeAllListeners('log-update');
         ipcRenderer.on('log-update', callback);
         return unsubscribe;
-    }
+    },
+
+    // New Windows Event Analysis
+    analyzeWindowsEvents: (options) => ipcRenderer.invoke('analyze-windows-events', options),
+    updateFirewallRules: (options) => ipcRenderer.invoke('update-firewall-rules', options),
+
+    // Whitelist
+    getWhitelistIPs: () => ipcRenderer.invoke('get-whitelist-ips'),
+    addWhitelistIP: (data) => ipcRenderer.invoke('add-whitelist-ip', data),
+    removeWhitelistIP: (ipId) => ipcRenderer.invoke('remove-whitelist-ip', ipId),
+
+    // Advanced IP management
+    getDetectedIPsHistory: (filters) => ipcRenderer.invoke('get-detected-ips-history', filters),
+    getIPStatistics: () => ipcRenderer.invoke('get-ip-statistics'),
+    updateIPStatus: (ip, status) => ipcRenderer.invoke('update-ip-status', ip, status),
 });

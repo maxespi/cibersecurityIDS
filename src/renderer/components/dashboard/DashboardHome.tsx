@@ -7,9 +7,10 @@ import LogsComponent from '../shared/LogsComponent';
 
 interface DashboardHomeProps {
     onNavigate: (view: ActiveView) => void;
+    electronAPI: any;
 }
 
-const DashboardHome: React.FC<DashboardHomeProps> = ({ onNavigate }) => {
+const DashboardHome: React.FC<DashboardHomeProps> = ({ onNavigate, electronAPI }) => {
     const navigationCards = [
         {
             id: 'scripts',

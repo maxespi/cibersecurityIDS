@@ -1,8 +1,7 @@
 // src/renderer/components/scripts/ScriptControl.tsx
-import React, { useState, useEffect } from 'react';
-import { Play, Square, Settings, RefreshCw, Clock, Shield } from 'lucide-react';
+import React, { useState } from 'react';
+import { Play, Square, Settings, RefreshCw, Clock, Shield, Target, Zap } from 'lucide-react';
 import { ScriptConfig } from '@/renderer/types';
-import LogsComponent from '../shared/LogsComponent';
 
 const ScriptControl: React.FC<{ electronAPI: any }> = ({ electronAPI }) => {
     const [config, setConfig] = useState<ScriptConfig>({
@@ -12,12 +11,14 @@ const ScriptControl: React.FC<{ electronAPI: any }> = ({ electronAPI }) => {
         autoFirewall: true
     });
 
-    // ✅ USAR directamente el estado del hook
+    // Usar directamente el estado del hook
     const isRunning = electronAPI.scriptState.isRunning;
     const scriptOutput = electronAPI.scriptState.logs;
+    const detectedIPs = electronAPI.scriptState.detectedIPs;
+    const blockedIPs = electronAPI.scriptState.blockedIPs;
 
     const handleStartScript = () => {
-        electronAPI.startScriptExecution(config.interval);
+        electronAPI.startScriptExecution(config.interval, config.autoFirewall);
     };
 
     const handleStopScript = () => {
@@ -25,7 +26,19 @@ const ScriptControl: React.FC<{ electronAPI: any }> = ({ electronAPI }) => {
     };
 
     const handleSingleScan = () => {
-        electronAPI.executeSingleScan();
+        if (config.autoFirewall) {
+            electronAPI.executeFullScanAndBlock();
+        } else {
+            electronAPI.executeSingleScan();
+        }
+    };
+
+    const handleFirewallUpdate = () => {
+        electronAPI.executeFirewallUpdate();
+    };
+
+    const handleAnalyzeOnly = () => {
+        electronAPI.analyzeFailedLogins();
     };
 
     const handleConfigChange = (key: keyof ScriptConfig, value: any) => {
@@ -67,7 +80,7 @@ const ScriptControl: React.FC<{ electronAPI: any }> = ({ electronAPI }) => {
                                 className="rounded"
                             />
                             <label htmlFor="autoFirewall" className="text-sm text-white">
-                                Agregar automáticamente al firewall
+                                Bloqueo automático en firewall
                             </label>
                         </div>
 
@@ -80,7 +93,7 @@ const ScriptControl: React.FC<{ electronAPI: any }> = ({ electronAPI }) => {
                                 className="rounded"
                             />
                             <label htmlFor="runOnce" className="text-sm text-white">
-                                Ejecutar una vez
+                                Ejecutar una vez y detener
                             </label>
                         </div>
 
@@ -104,38 +117,77 @@ const ScriptControl: React.FC<{ electronAPI: any }> = ({ electronAPI }) => {
                                     </>
                                 )}
                             </button>
-
-                            <button
-                                onClick={handleSingleScan}
-                                className="w-full flex items-center justify-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all"
-                            >
-                                <RefreshCw className="w-4 h-4 mr-2" />
-                                Escaneo Único
-                            </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Firewall Integration */}
+                {/* Manual Actions */}
                 <div className="glass-effect rounded-2xl p-6">
                     <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
-                        <Shield className="w-5 h-5 mr-3 text-red-400" />
-                        Integración Firewall
+                        <Target className="w-5 h-5 mr-3 text-blue-400" />
+                        Acciones Manuales
+                    </h3>
+
+                    <div className="space-y-3">
+                        <button
+                            onClick={handleSingleScan}
+                            className="w-full flex items-center justify-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all"
+                        >
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            {config.autoFirewall ? 'Escaneo + Bloqueo' : 'Solo Escaneo'}
+                        </button>
+
+                        <button
+                            onClick={handleAnalyzeOnly}
+                            className="w-full flex items-center justify-center px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium transition-all"
+                        >
+                            <Settings className="w-4 h-4 mr-2" />
+                            Analizar Logs
+                        </button>
+
+                        <button
+                            onClick={handleFirewallUpdate}
+                            className="w-full flex items-center justify-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-all"
+                            disabled={detectedIPs.length === 0}
+                        >
+                            <Shield className="w-4 h-4 mr-2" />
+                            Actualizar Firewall
+                        </button>
+
+                        <button
+                            onClick={() => electronAPI.clearDetectedIPs()}
+                            className="w-full flex items-center justify-center px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all"
+                        >
+                            <Zap className="w-4 h-4 mr-2" />
+                            Limpiar IPs Detectadas
+                        </button>
+                    </div>
+                </div>
+
+                {/* Statistics */}
+                <div className="glass-effect rounded-2xl p-6">
+                    <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                        <Settings className="w-5 h-5 mr-3 text-yellow-400" />
+                        Estadísticas
                     </h3>
 
                     <div className="space-y-4">
                         <div className="bg-white bg-opacity-10 rounded-lg p-4">
-                            <h4 className="text-sm font-medium text-white mb-2">Estado</h4>
-                            <div className="flex items-center space-x-2">
-                                <div className={`w-3 h-3 rounded-full ${isRunning ? 'bg-green-500' : 'bg-gray-500'}`}></div>
-                                <span className="text-sm text-white">
-                                    {isRunning ? 'Activo' : 'Inactivo'}
-                                </span>
-                            </div>
+                            <div className="text-2xl font-bold text-red-400">{detectedIPs.length}</div>
+                            <div className="text-sm text-white text-opacity-70">IPs detectadas</div>
                         </div>
 
                         <div className="bg-white bg-opacity-10 rounded-lg p-4">
-                            <h4 className="text-sm font-medium text-white mb-2">Sistema</h4>
+                            <div className="text-2xl font-bold text-orange-400">{blockedIPs.length}</div>
+                            <div className="text-sm text-white text-opacity-70">IPs bloqueadas</div>
+                        </div>
+
+                        <div className="bg-white bg-opacity-10 rounded-lg p-4">
+                            <div className="text-2xl font-bold text-blue-400">{scriptOutput.length}</div>
+                            <div className="text-sm text-white text-opacity-70">Eventos de script</div>
+                        </div>
+
+                        <div className="bg-white bg-opacity-10 rounded-lg p-4">
                             <div className="flex items-center space-x-2">
                                 <div className={`w-3 h-3 rounded-full ${electronAPI.systemStatus.firewallEnabled ? 'bg-green-500' : 'bg-red-500'
                                     }`}></div>
@@ -144,47 +196,11 @@ const ScriptControl: React.FC<{ electronAPI: any }> = ({ electronAPI }) => {
                                 </span>
                             </div>
                         </div>
-
-                        <div className="bg-white bg-opacity-10 rounded-lg p-4">
-                            <h4 className="text-sm font-medium text-white mb-2">Configuración</h4>
-                            <div className="space-y-2 text-sm text-white text-opacity-70">
-                                <div>Intervalo: {config.interval}s</div>
-                                <div>Auto-bloqueo: {config.autoFirewall ? 'Sí' : 'No'}</div>
-                                <div>Ejecución única: {config.runOnce ? 'Sí' : 'No'}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Recent Activity Summary */}
-                <div className="glass-effect rounded-2xl p-6">
-                    <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
-                        <Settings className="w-5 h-5 mr-3 text-blue-400" />
-                        Resumen de Actividad
-                    </h3>
-
-                    <div className="space-y-4">
-                        <div className="bg-white bg-opacity-10 rounded-lg p-4">
-                            <div className="text-2xl font-bold text-green-400">0</div>
-                            <div className="text-sm text-white text-opacity-70">IPs detectadas hoy</div>
-                        </div>
-
-                        <div className="bg-white bg-opacity-10 rounded-lg p-4">
-                            <div className="text-2xl font-bold text-red-400">0</div>
-                            <div className="text-sm text-white text-opacity-70">IPs bloqueadas</div>
-                        </div>
-
-                        <div className="bg-white bg-opacity-10 rounded-lg p-4">
-                            <div className="text-2xl font-bold text-blue-400">
-                                {scriptOutput.length}
-                            </div>
-                            <div className="text-sm text-white text-opacity-70">Eventos de script</div>
-                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Live Logs */}
+            {/* Live Logs and Detected IPs */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Script Output */}
                 <div className="glass-effect rounded-2xl p-6">
@@ -211,13 +227,36 @@ const ScriptControl: React.FC<{ electronAPI: any }> = ({ electronAPI }) => {
                     </div>
                 </div>
 
-                {/* User Actions Log */}
-                <LogsComponent
-                    title="Acciones de Usuario"
-                    logType="user"
-                    height="h-64"
-                    showControls={true}
-                />
+                {/* Detected IPs */}
+                <div className="glass-effect rounded-2xl p-6">
+                    <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                        <Target className="w-5 h-5 mr-3 text-red-400" />
+                        IPs Detectadas ({detectedIPs.length})
+                    </h3>
+
+                    <div className="bg-white bg-opacity-10 rounded-lg p-4 h-64 overflow-y-auto custom-scrollbar">
+                        {detectedIPs.length === 0 ? (
+                            <div className="text-center text-white text-opacity-70 mt-20">
+                                <Target className="w-12 h-12 mx-auto mb-4 text-white text-opacity-30" />
+                                <p>No se han detectado IPs sospechosas</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {detectedIPs.map((ip, index) => (
+                                    <div key={index} className="flex items-center justify-between bg-white bg-opacity-10 rounded-lg p-2">
+                                        <span className="text-white font-mono text-sm">{ip}</span>
+                                        <span className={`text-xs px-2 py-1 rounded ${blockedIPs.includes(ip)
+                                                ? 'bg-red-500 text-white'
+                                                : 'bg-yellow-500 text-black'
+                                            }`}>
+                                            {blockedIPs.includes(ip) ? 'Bloqueada' : 'Detectada'}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
         </div>
     );
