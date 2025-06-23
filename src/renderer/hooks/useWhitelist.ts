@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface WhitelistEntry {
   id: number;
@@ -14,6 +14,7 @@ export const useWhitelist = () => {
   const [whitelist, setWhitelist] = useState<WhitelistEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isInitialized = useRef(false);
 
   const loadWhitelist = useCallback(async () => {
     try {
@@ -53,6 +54,9 @@ export const useWhitelist = () => {
       permanent: boolean;
       expiresAt?: string;
     }) => {
+      // ✅ Guard para evitar operaciones simultáneas
+      if (loading) return { success: false, error: "Operación en progreso" };
+
       try {
         console.log("🔧 [DEBUG] addToWhitelist iniciado con:", data);
         setLoading(true);
@@ -73,8 +77,13 @@ export const useWhitelist = () => {
             expiresAt: result.data.expiresAt,
           };
 
-          setWhitelist((prev) => [newEntry, ...prev]);
-          console.log("🔧 [DEBUG] IP agregada al estado local");
+          setWhitelist((prevWhitelist) => {
+            const exists = prevWhitelist.some(
+              (entry) => entry.ip === newEntry.ip
+            );
+            if (exists) return prevWhitelist;
+            return [newEntry, ...prevWhitelist];
+          });
 
           return { success: true, data: newEntry };
         } else {
@@ -93,7 +102,7 @@ export const useWhitelist = () => {
       }
     },
     []
-  );
+  ); // ✅ Array vacío para máxima estabilidad
 
   const removeFromWhitelist = useCallback(async (ipId: number) => {
     try {
@@ -125,9 +134,11 @@ export const useWhitelist = () => {
   }, []);
 
   useEffect(() => {
-    console.log("🔧 [DEBUG] useWhitelist useEffect - cargando inicial");
-    loadWhitelist();
-  }, [loadWhitelist]);
+    if (!isInitialized.current) {
+      isInitialized.current = true;
+      loadWhitelist();
+    }
+  }, []);
 
   return {
     whitelist,

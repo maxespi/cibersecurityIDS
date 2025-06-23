@@ -1,6 +1,6 @@
 // src/renderer/hooks/useFirewall.ts
 import { useState, useEffect, useCallback } from "react";
-import { BlockedIP, FirewallStats, GeoData } from "@types/index";
+import { BlockedIP, FirewallStats, GeoData } from "../types";
 
 export const useFirewall = () => {
   const [blockedIPs, setBlockedIPs] = useState<BlockedIP[]>([]);
@@ -137,16 +137,21 @@ export const useFirewall = () => {
   );
 
   useEffect(() => {
-    checkPermissions();
-    loadFirewallData();
+    let mounted = true;
 
-    // Suscribirse a actualizaciones del firewall
-    const unsubscribe = window.electronAPI.onFirewallUpdate(() => {
-      loadFirewallData();
-    });
+    const init = async () => {
+      if (mounted) {
+        await checkPermissions();
+        await loadFirewallData();
+      }
+    };
 
-    return unsubscribe;
-  }, [checkPermissions, loadFirewallData]);
+    init();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return {
     blockedIPs,

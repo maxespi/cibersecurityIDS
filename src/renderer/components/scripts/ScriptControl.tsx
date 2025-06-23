@@ -38,16 +38,46 @@ const ScriptControl: React.FC<{ electronAPI: any }> = ({ electronAPI }) => {
         electronAPI.stopScriptExecution();
     };
 
-    const handleSingleScan = () => {
-        if (config.autoFirewall) {
-            electronAPI.executeFullScanAndBlock();
-        } else {
-            electronAPI.executeSingleScan();
+    const handleSingleScan = async () => {
+        try {
+            console.log('🔧 [FRONTEND] Ejecutando escaneo único...');
+
+            let result;
+            if (config.autoFirewall) {
+                result = await electronAPI.executeFullScanAndBlock();
+            } else {
+                result = await electronAPI.executeSingleScan();
+            }
+
+            if (result?.success) {
+                console.log('🔧 [FRONTEND] Escaneo completado:', result.message);
+            }
+        } catch (error) {
+            console.error('🔧 [FRONTEND] Error en escaneo:', error);
         }
     };
 
-    const handleFirewallUpdate = () => {
-        electronAPI.executeFirewallUpdate();
+
+    const handleFirewallUpdate = async () => {
+        try {
+            const result = await electronAPI.executeFirewallUpdate();
+            if (result?.success) {
+                console.log('🔧 [FRONTEND] Firewall actualizado');
+            }
+        } catch (error) {
+            console.error('🔧 [FRONTEND] Error actualizando firewall:', error);
+        }
+    };
+
+    const handleClearDetectedIPs = async () => {
+        try {
+            const result = await electronAPI.clearDetectedIPs();
+            if (result?.success) {
+                console.log('🔧 [FRONTEND] IPs limpiadas');
+            }
+        } catch (error) {
+            console.error('🔧 [FRONTEND] Error limpiando IPs:', error);
+        }
     };
 
     const handleAnalyzeOnly = () => {

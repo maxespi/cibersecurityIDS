@@ -285,4 +285,4 @@ const FirewallDashboard: React.FC = () => {
     );
 };
 
-export default FirewallDashboard;
+export default React.memo(FirewallDashboard);

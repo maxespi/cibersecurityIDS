@@ -100,5 +100,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
         console.log('🔧 [PRELOAD] stopScriptExecution called - implementar si es necesario');
         // Implementar si tienes un handler para detener scripts
         // return ipcRenderer.invoke('stop-script');
-    }
+    },
+
+    // Script control adicional
+    executeFullScanAndBlock: () => ipcRenderer.invoke('execute-full-scan-and-block'),
+    executeSingleScan: () => ipcRenderer.invoke('execute-single-scan'),
+    executeFirewallUpdate: () => ipcRenderer.invoke('execute-firewall-update'),
+    clearDetectedIPs: () => ipcRenderer.invoke('clear-detected-ips'),
 });

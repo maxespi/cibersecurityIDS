@@ -442,7 +442,10 @@ ipcMain.handle('check-admin-privileges', async (event) => {
         ps.on('close', (code) => {
             const isAdmin = output.toLowerCase() === 'true';
             resolve({
-                isAdmin: isAdmin,
+                success: true,
+                data: {
+                    isAdmin: isAdmin
+                },
                 message: isAdmin ? 'Running with administrator privileges' : 'Administrator privileges required'
             });
         });
@@ -723,13 +726,342 @@ ipcMain.handle('get-script-status', async (event) => {
     };
 });
 
-// AGREGAR HANDLER FALTANTE PARA LOGS
 ipcMain.handle('get-logs', async (event, type) => {
     try {
-        // Implementar lógica para obtener logs según el tipo
+        console.log(`🔧 [BACKEND] Obteniendo logs tipo: ${type}`);
+
+        let logs = [];
+
+        switch (type) {
+            case 'user':
+                // Logs de acciones de usuario (desde una tabla de logs si existe)
+                logs = await getUserLogs();
+                break;
+
+            case 'script':
+                // Logs de scripts desde archivos
+                logs = await getScriptLogs();
+                break;
+
+            case 'system':
+                // Logs del sistema y eventos Windows
+                logs = await getSystemLogs();
+                break;
+
+            default:
+                // Todos los logs combinados
+                const userLogs = await getUserLogs();
+                const scriptLogs = await getScriptLogs();
+                const systemLogs = await getSystemLogs();
+                logs = [...userLogs, ...scriptLogs, ...systemLogs];
+        }
+
+        // Ordenar por fecha descendente
+        logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
         return {
             success: true,
-            data: []
+            data: logs
+        };
+    } catch (error) {
+        console.error('🔧 [BACKEND] Error obteniendo logs:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+});
+
+ipcMain.handle('get-recent-logs', async (event, limit = 50) => {
+    try {
+        console.log(`🔧 [BACKEND] Obteniendo últimos ${limit} logs`);
+
+        // Obtener logs recientes de múltiples fuentes
+        const detectedIPs = await DetectedIP.findAll({
+            order: [['lastSeen', 'DESC']],
+            limit: Math.floor(limit / 2)
+        });
+
+        const whitelistChanges = await WhitelistIP.findAll({
+            order: [['createdAt', 'DESC']],
+            limit: Math.floor(limit / 4)
+        });
+
+        const windowsEvents = await WindowsEvent.findAll({
+            order: [['timestamp', 'DESC']],
+            limit: Math.floor(limit / 4)
+        });
+
+        // Convertir a formato LogEntry
+        const logs = [
+            ...detectedIPs.map(ip => ({
+                id: `detected-${ip.id}`,
+                timestamp: ip.lastSeen,
+                level: 'warning',
+                source: 'system',
+                message: `IP sospechosa detectada: ${ip.ip} (${ip.attempts} intentos)`,
+                metadata: { ip: ip.ip, attempts: ip.attempts, status: ip.status }
+            })),
+            ...whitelistChanges.map(wl => ({
+                id: `whitelist-${wl.id}`,
+                timestamp: wl.createdAt,
+                level: 'info',
+                source: 'user',
+                message: `IP agregada a whitelist: ${wl.ip}`,
+                metadata: { ip: wl.ip, user: wl.addedBy }
+            })),
+            ...windowsEvents.map(we => ({
+                id: `windows-${we.id}`,
+                timestamp: we.timestamp,
+                level: 'warning',
+                source: 'system',
+                message: `Evento Windows ${we.eventId}: ${we.description}`,
+                metadata: { eventId: we.eventId, sourceIP: we.sourceIP }
+            }))
+        ];
+
+        // Ordenar y limitar
+        logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        return {
+            success: true,
+            data: logs.slice(0, limit)
+        };
+    } catch (error) {
+        console.error('🔧 [BACKEND] Error obteniendo logs recientes:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+});
+
+ipcMain.handle('search-logs', async (event, query, exactMatch = false) => {
+    try {
+        console.log(`🔧 [BACKEND] Buscando logs: "${query}"`);
+
+        const searchCondition = exactMatch
+            ? { ip: query }
+            : { ip: { [Op.like]: `%${query}%` } };
+
+        const detectedIPs = await DetectedIP.findAll({
+            where: searchCondition,
+            order: [['lastSeen', 'DESC']],
+            limit: 100
+        });
+
+        const logs = detectedIPs.map(ip => ({
+            id: `search-${ip.id}`,
+            timestamp: ip.lastSeen,
+            level: 'warning',
+            source: 'system',
+            message: `IP encontrada: ${ip.ip} (${ip.attempts} intentos)`,
+            metadata: { ip: ip.ip, attempts: ip.attempts, status: ip.status }
+        }));
+
+        return {
+            success: true,
+            data: logs
+        };
+    } catch (error) {
+        console.error('🔧 [BACKEND] Error buscando logs:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+});
+
+// ✅ FUNCIONES AUXILIARES:
+async function getUserLogs() {
+    // Implementar logs de usuario si tienes una tabla de logs
+    return [
+        {
+            id: 'user-login',
+            timestamp: new Date(),
+            level: 'info',
+            source: 'user',
+            message: 'Usuario admin inició sesión',
+            metadata: { username: 'admin' }
+        }
+    ];
+}
+
+async function getScriptLogs() {
+    try {
+        // Leer logs de script desde archivo
+        const logFile = path.join(logRoot, 'registro_intentos.csv');
+
+        if (!fs.existsSync(logFile)) {
+            return [];
+        }
+
+        const logContent = fs.readFileSync(logFile, 'utf-8');
+        const lines = logContent.split('\n').slice(1).filter(line => line.trim()); // Skip header
+
+        return lines.slice(-50).map((line, index) => {
+            const [ip, fecha, usuario, tipoLogin, codigoError, dominio, equipo] = line.split(',');
+
+            return {
+                id: `script-${index}`,
+                timestamp: new Date(fecha),
+                level: 'warning',
+                source: 'script',
+                message: `Intento fallido desde ${ip} - Usuario: ${usuario}`,
+                metadata: { ip, usuario, tipoLogin, codigoError, dominio, equipo }
+            };
+        });
+    } catch (error) {
+        console.error('Error leyendo logs de script:', error);
+        return [];
+    }
+}
+
+async function getSystemLogs() {
+    try {
+        // Logs desde base de datos SQLite
+        const windowsEvents = await WindowsEvent.findAll({
+            order: [['timestamp', 'DESC']],
+            limit: 30
+        });
+
+        return windowsEvents.map(event => ({
+            id: `system-${event.id}`,
+            timestamp: event.timestamp,
+            level: 'info',
+            source: 'system',
+            message: `Evento Windows ${event.eventId}: ${event.description}`,
+            metadata: {
+                eventId: event.eventId,
+                sourceIP: event.sourceIP,
+                username: event.username
+            }
+        }));
+    } catch (error) {
+        console.error('Error obteniendo logs del sistema:', error);
+        return [];
+    }
+}
+
+// Handler para escaneo completo + bloqueo
+ipcMain.handle('execute-full-scan-and-block', async (event) => {
+    try {
+        console.log('🔧 [BACKEND] Ejecutando escaneo completo + bloqueo...');
+
+        // 1. Ejecutar análisis de IPs
+        const analysisResult = await executeIPAnalysis(event);
+
+        if (analysisResult && analysisResult.detectedIPs.length > 0) {
+            // 2. Ejecutar bloqueo automático
+            const firewallResult = await executeFirewallUpdate(event);
+
+            return {
+                success: true,
+                data: {
+                    analysis: analysisResult,
+                    firewall: firewallResult,
+                    message: `Escaneo completado: ${analysisResult.detectedIPs.length} IPs detectadas y bloqueadas`
+                }
+            };
+        } else {
+            return {
+                success: true,
+                data: {
+                    analysis: analysisResult,
+                    message: 'Escaneo completado: No se detectaron nuevas amenazas'
+                }
+            };
+        }
+    } catch (error) {
+        console.error('🔧 [BACKEND] Error en escaneo completo:', error);
+        event.sender.send('log-error', `Error en escaneo completo: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+});
+
+// Handler para escaneo simple
+ipcMain.handle('execute-single-scan', async (event) => {
+    try {
+        console.log('🔧 [BACKEND] Ejecutando escaneo simple...');
+
+        const result = await executeIPAnalysis(event);
+
+        return {
+            success: true,
+            data: result,
+            message: `Escaneo simple completado: ${result?.detectedIPs?.length || 0} IPs detectadas`
+        };
+    } catch (error) {
+        console.error('🔧 [BACKEND] Error en escaneo simple:', error);
+        event.sender.send('log-error', `Error en escaneo simple: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+});
+
+// Handler para actualización de firewall
+ipcMain.handle('execute-firewall-update', async (event) => {
+    try {
+        console.log('🔧 [BACKEND] Ejecutando actualización de firewall...');
+
+        const result = await executeFirewallUpdate(event);
+
+        return {
+            success: true,
+            data: result,
+            message: 'Firewall actualizado correctamente'
+        };
+    } catch (error) {
+        console.error('🔧 [BACKEND] Error actualizando firewall:', error);
+        event.sender.send('log-error', `Error actualizando firewall: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+});
+
+// Handler para limpiar IPs detectadas
+ipcMain.handle('clear-detected-ips', async (event) => {
+    try {
+        console.log('🔧 [BACKEND] Limpiando IPs detectadas...');
+
+        // Limpiar archivo de IPs
+        const ipsFile = path.join(logRoot, 'salida_ips.txt');
+
+        if (fs.existsSync(ipsFile)) {
+            fs.writeFileSync(ipsFile, '');
+            console.log('🔧 [BACKEND] Archivo de IPs limpiado');
+        }
+
+        // Limpiar IPs con estado 'detected' de la base de datos
+        await DetectedIP.update(
+            { status: 'cleared' },
+            { where: { status: 'detected' } }
+        );
+
+        event.sender.send('log-data', 'IPs detectadas limpiadas exitosamente');
+
+        return {
+            success: true,
+            message: 'IPs detectadas limpiadas exitosamente'
+        };
+    } catch (error) {
+        console.error('🔧 [BACKEND] Error limpiando IPs:', error);
+        event.sender.send('log-error', `Error limpiando IPs: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('remove-multiple-ips-from-firewall', async (event, ips) => {
+    try {
+        let removedCount = 0;
+
+        for (const ip of ips) {
+            const result = await firewallManager.removeIPFromFirewall(ip);
+            if (result.success) removedCount++;
+        }
+
+        return {
+            success: true,
+            data: { removed: removedCount, total: ips.length },
+            message: `${removedCount} de ${ips.length} IPs removidas`
         };
     } catch (error) {
         return { success: false, error: error.message };

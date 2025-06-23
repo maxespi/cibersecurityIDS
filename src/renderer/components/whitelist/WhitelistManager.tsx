@@ -9,20 +9,17 @@ const WhitelistManager: React.FC = () => {
     const [permanent, setPermanent] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // ✅ Usar useCallback para evitar re-renders
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
         e.stopPropagation();
 
-        console.log('🔧 [DEBUG] Formulario submit iniciado');
+        if (isSubmitting || loading) return;
 
         if (!newIP.trim()) {
-            console.log('🔧 [DEBUG] IP vacía, retornando');
             return;
         }
 
         setIsSubmitting(true);
-        console.log('🔧 [DEBUG] Agregando IP:', newIP);
 
         try {
             const result = await addToWhitelist({
@@ -31,8 +28,6 @@ const WhitelistManager: React.FC = () => {
                 permanent,
                 expiresAt: permanent ? undefined : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
             });
-
-            console.log('🔧 [DEBUG] Resultado:', result);
 
             if (result.success) {
                 console.log('🔧 [DEBUG] IP agregada exitosamente, limpiando formulario');
@@ -48,7 +43,7 @@ const WhitelistManager: React.FC = () => {
             setIsSubmitting(false);
             console.log('🔧 [DEBUG] Submit completado');
         }
-    }, [newIP, description, permanent, addToWhitelist]);
+    }, [newIP, description, permanent, addToWhitelist, isSubmitting, loading]);
 
     // ✅ Usar useCallback para handleRemove
     const handleRemove = useCallback(async (ipId: number) => {
@@ -231,4 +226,4 @@ const WhitelistManager: React.FC = () => {
     );
 };
 
-export default React.memo(WhitelistManager); // ✅ Memoizar componente
+export default React.memo(WhitelistManager);
