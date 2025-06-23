@@ -5,6 +5,7 @@ const fs = require('fs');
 const { Op } = require('sequelize'); // ← AGREGAR ESTA LÍNEA
 const sequelize = require('./db/config/db');
 const User = require('./db/models/User');
+const scanForIpIn4625 = require('./src/utils/scanForIpIn4625');
 
 // Importar el FirewallManager
 const FirewallManager = require('./src/utils/firewallManager');
@@ -55,12 +56,6 @@ function createWindow() {
 
 
     mainWindow.setMenuBarVisibility(false);
-
-    // mainWindow.webContents.on('did-finish-load', () => {
-    //     console.log('La aplicación se ha abierto.');
-    //     // ❌ COMENTAR - esto puede causar reinicio
-    //     // mainWindow.webContents.send('user-logged-in', 'admin');
-    // });
 
     // En desarrollo, abrir DevTools
     if (process.env.NODE_ENV === 'development') {
@@ -144,71 +139,197 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Script execution
 ipcMain.handle('run-script', async (event, scriptName) => {
-    console.log(`🔧 [BACKEND] Ejecutando script: ${scriptName}`);
+    console.log(`🔧 [BACKEND] Ejecutando script NATIVO: ${scriptName}`);
 
     try {
-        const scriptPath = path.join(__dirname, 'scripts', `${scriptName}.ps1`);
+        let result;
 
-        if (!fs.existsSync(scriptPath)) {
-            console.error(`🔧 [BACKEND] Script no encontrado: ${scriptPath}`);
-            throw new Error(`Script ${scriptName} no encontrado en ${scriptPath}`);
+        switch (scriptName) {
+            case 'detectIntrusos':
+            case 'logs_for_ips_4625':
+                console.log('🔧 [BACKEND] Ejecutando análisis de IPs nativo...');
+
+                // ✅ USAR FUNCIÓN JAVASCRIPT NATIVA
+                result = await executeIPAnalysis(event);
+                break;
+
+            case 'extractIPs':
+            case 'extraer_ips_4625':
+                console.log('🔧 [BACKEND] Ejecutando extracción de IPs nativo...');
+
+                // ✅ USAR FUNCIÓN JAVASCRIPT NATIVA
+                result = await executeIPExtraction(event);
+                break;
+
+            case 'blockIPs':
+            case 'BlockIpAndUpdateForOneRule':
+                console.log('🔧 [BACKEND] Ejecutando bloqueo de IPs nativo...');
+
+                // ✅ USAR FIREWALL MANAGER NATIVO
+                result = await executeFirewallUpdate(event);
+                break;
+
+            default:
+                throw new Error(`Script ${scriptName} no reconocido`);
         }
-
-        console.log(`🔧 [BACKEND] Iniciando PowerShell script: ${scriptPath}`);
-
-        const childProcess = spawn('powershell.exe', [
-            '-ExecutionPolicy', 'Bypass',
-            '-File', scriptPath
-        ], {
-            stdio: ['pipe', 'pipe', 'pipe'],
-            shell: false
-        });
-
-        // Manejar salida estándar
-        childProcess.stdout.on('data', (data) => {
-            const output = data.toString().trim();
-            if (output) {
-                console.log('🔧 [SCRIPT-OUT]:', output);
-                event.sender.send('log-data', output);
-            }
-        });
-
-        // Manejar errores
-        childProcess.stderr.on('data', (data) => {
-            const error = data.toString().trim();
-            if (error) {
-                console.error('🔧 [SCRIPT-ERR]:', error);
-                event.sender.send('log-error', error);
-            }
-        });
-
-        // Manejar cierre del proceso
-        childProcess.on('close', (code) => {
-            const message = `Script ${scriptName} terminado con código: ${code}`;
-            console.log('🔧 [SCRIPT-CLOSE]:', message);
-            event.sender.send('log-close', message);
-        });
-
-        // Manejar errores del proceso
-        childProcess.on('error', (error) => {
-            console.error('🔧 [SCRIPT-PROCESS-ERROR]:', error);
-            event.sender.send('log-error', `Error del proceso: ${error.message}`);
-        });
 
         return {
             success: true,
-            message: `Script ${scriptName} iniciado correctamente`,
-            pid: childProcess.pid
+            message: `Script ${scriptName} ejecutado correctamente con función nativa`,
+            data: result
         };
 
     } catch (error) {
-        console.error('🔧 [BACKEND] Error executing script:', error);
+        console.error('🔧 [BACKEND] Error executing native script:', error);
+        event.sender.send('log-error', `Error: ${error.message}`);
+
         return {
             success: false,
-            error: error.message || 'Error desconocido ejecutando script'
+            error: error.message || 'Error desconocido ejecutando script nativo'
         };
     }
 });
+
+async function executeIPAnalysis(event) {
+    try {
+        event.sender.send('log-data', 'Iniciando análisis de eventos 4625...');
+
+        // Usar la función JavaScript nativa
+        const result = await scanForIpIn4625(logRoot, configRoot);
+
+        event.sender.send('log-data', 'Análisis de eventos completado');
+        event.sender.send('log-data', `Resultado: ${result}`);
+
+        // Leer IPs detectadas del archivo generado
+        const ipsFile = path.join(logRoot, 'salida_ips.txt');
+        let detectedIPs = [];
+
+        if (fs.existsSync(ipsFile)) {
+            const ipsContent = fs.readFileSync(ipsFile, 'utf-8');
+            detectedIPs = ipsContent.split('\n').filter(ip => ip.trim());
+
+            event.sender.send('log-data', `IPs detectadas: ${detectedIPs.length}`);
+
+            // Enviar IPs detectadas al frontend
+            if (detectedIPs.length > 0) {
+                event.sender.send('log-data', `Nuevas IPs: ${detectedIPs.slice(-5).join(', ')}`);
+            }
+        }
+
+        return {
+            detectedIPs: detectedIPs,
+            totalEvents: 'Procesados exitosamente',
+            logFile: path.join(logRoot, 'registro_intentos.csv')
+        };
+
+    } catch (error) {
+        event.sender.send('log-error', `Error en análisis de IPs: ${error.message}`);
+        throw error;
+    }
+}
+
+// ✅ FUNCIÓN PARA EXTRACCIÓN DE IPs (reemplaza extraer_ips_4625.ps1)
+async function executeIPExtraction(event) {
+    try {
+        event.sender.send('log-data', 'Iniciando extracción rápida de IPs...');
+
+        // Esta función puede usar una versión simplificada del scanForIpIn4625
+        // o implementar lógica específica para extracción rápida
+        const result = await scanForIpIn4625(logRoot, configRoot);
+
+        event.sender.send('log-data', 'Extracción de IPs completada');
+
+        return {
+            extractedIPs: result,
+            operation: 'IP extraction'
+        };
+
+    } catch (error) {
+        event.sender.send('log-error', `Error en extracción de IPs: ${error.message}`);
+        throw error;
+    }
+}
+
+// ✅ FUNCIÓN PARA ACTUALIZACIÓN DE FIREWALL (reemplaza BlockIpAndUpdateForOneRule.ps1)
+async function executeFirewallUpdate(event) {
+    try {
+        event.sender.send('log-data', 'Iniciando actualización del firewall...');
+
+        // Leer IPs detectadas
+        const ipsFile = path.join(logRoot, 'salida_ips.txt');
+
+        if (!fs.existsSync(ipsFile)) {
+            throw new Error('No hay archivo de IPs detectadas. Ejecute primero el análisis.');
+        }
+
+        const ipsContent = fs.readFileSync(ipsFile, 'utf-8');
+        const detectedIPs = ipsContent.split('\n').filter(ip => ip.trim());
+
+        if (detectedIPs.length === 0) {
+            event.sender.send('log-data', 'No hay IPs para bloquear');
+            return { blockedIPs: [], message: 'No hay IPs para bloquear' };
+        }
+
+        event.sender.send('log-data', `Bloqueando ${detectedIPs.length} IPs...`);
+
+        // 1. Verificar whitelist desde base de datos
+        const whitelistEntries = await WhitelistIP.findAll();
+        const whitelistIPs = whitelistEntries.map(entry => entry.ip);
+        const ipsToBlock = detectedIPs.filter(ip => !whitelistIPs.includes(ip));
+
+        if (ipsToBlock.length === 0) {
+            event.sender.send('log-data', 'Todas las IPs están en whitelist');
+            return { blockedIPs: [], message: 'Todas las IPs están en whitelist' };
+        }
+
+        event.sender.send('log-data', `IPs a bloquear (después de whitelist): ${ipsToBlock.length}`);
+
+        // 2. Usar FirewallManager nativo para bloquear IPs
+        const firewallResult = await firewallManager.blockMultipleIPs(ipsToBlock);
+
+        if (firewallResult.success) {
+            event.sender.send('log-data', `Firewall actualizado: ${ipsToBlock.length} IPs bloqueadas`);
+
+            // 3. Registrar en base de datos
+            for (const ip of ipsToBlock) {
+                await DetectedIP.upsert({
+                    ip: ip,
+                    attempts: 1,
+                    status: 'blocked',
+                    firstDetected: new Date(),
+                    lastSeen: new Date(),
+                    source: 'auto-analysis'
+                });
+            }
+
+            event.sender.send('log-data', 'IPs registradas en base de datos');
+
+            return {
+                blockedIPs: ipsToBlock,
+                firewallResult: firewallResult,
+                message: `${ipsToBlock.length} IPs bloqueadas exitosamente`
+            };
+        } else {
+            throw new Error(`Error del firewall: ${firewallResult.error}`);
+        }
+
+    } catch (error) {
+        event.sender.send('log-error', `Error en actualización del firewall: ${error.message}`);
+        throw error;
+    }
+}
+
+// ✅ FUNCIÓN AUXILIAR PARA VERIFICAR SISTEMA OPERATIVO
+function checkWindowsServer() {
+    try {
+        const { execSync } = require('child_process');
+        const os = execSync('wmic os get Caption', { encoding: 'utf8' });
+        return os.includes('Server');
+    } catch (error) {
+        console.warn('No se pudo verificar el sistema operativo:', error.message);
+        return true; // Asumir que es compatible si no se puede verificar
+    }
+}
 
 // Log content loading
 ipcMain.on('load-log-content', (event) => {

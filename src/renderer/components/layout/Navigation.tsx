@@ -83,4 +83,5 @@ const Navigation: React.FC<NavigationProps> = ({ activeView, onViewChange }) => 
     );
 };
 
-export default Navigation;
+export default React.memo(Navigation);
+

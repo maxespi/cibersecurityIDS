@@ -21,9 +21,8 @@ const ScriptControl: React.FC<{ electronAPI: any }> = ({ electronAPI }) => {
         try {
             console.log('🔧 [FRONTEND] Iniciando script...');
 
-            // Usar cualquiera de las dos funciones (son iguales):
+            // ✅ AHORA startScriptExecution ESTARÁ DISPONIBLE
             const result = await electronAPI.startScriptExecution('detectIntrusos');
-            // O también funciona: await electronAPI.runScript('detectIntrusos');
 
             if (result.success) {
                 console.log('🔧 [FRONTEND] Script iniciado:', result.message);
@@ -276,4 +275,4 @@ const ScriptControl: React.FC<{ electronAPI: any }> = ({ electronAPI }) => {
     );
 };
 
-export default ScriptControl;
+export default React.memo(ScriptControl);

@@ -17,11 +17,6 @@ const App: React.FC = () => {
     // Integrar todas las funcionalidades de mainRenderer
     const electronAPI = useElectronAPI();
 
-    useEffect(() => {
-        // Inicialización adicional si es necesaria
-        console.log('CyberGuard IDS React App iniciado con API completa');
-    }, []);
-
     const renderCurrentView = () => {
         switch (activeView) {
             case 'dashboard':

@@ -236,9 +236,12 @@ export const useElectronAPI = () => {
   }, [analyzeFailedLogins, updateFirewallRules]);
 
   return {
+    ...window.electronAPI,
+
     scriptState,
     systemStatus,
     // Funciones de control expuestas
+
     startScript,
     stopScript,
     runSingleScan,
