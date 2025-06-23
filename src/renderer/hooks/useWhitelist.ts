@@ -17,30 +17,32 @@ export const useWhitelist = () => {
 
   const loadWhitelist = useCallback(async () => {
     try {
-      console.log("🔧 [DEBUG] Cargando whitelist...");
+      console.log("🔧 [WHITELIST] Iniciando carga...");
       setLoading(true);
       setError(null);
 
       const result = await window.electronAPI.getWhitelistIPs();
-      console.log("🔧 [DEBUG] Resultado loadWhitelist:", result);
+      console.log(
+        "🔧 [WHITELIST] Resultado carga:",
+        result?.success,
+        "entries:",
+        result?.data?.length
+      );
 
       if (result.success) {
         setWhitelist(result.data);
-        console.log(
-          "🔧 [DEBUG] Whitelist cargada:",
-          result.data.length,
-          "entradas"
-        );
+        console.log("🔧 [WHITELIST] Estado actualizado correctamente");
       } else {
         setError(result.error);
-        console.error("🔧 [DEBUG] Error en loadWhitelist:", result.error);
+        console.error("🔧 [WHITELIST] Error en carga:", result.error);
       }
     } catch (err) {
       const errorMsg = `Error loading whitelist: ${err}`;
       setError(errorMsg);
-      console.error("🔧 [DEBUG] Excepción en loadWhitelist:", err);
+      console.error("🔧 [WHITELIST] Excepción en carga:", err);
     } finally {
       setLoading(false);
+      console.log("🔧 [WHITELIST] Carga finalizada");
     }
   }, []);
 
@@ -93,37 +95,34 @@ export const useWhitelist = () => {
     []
   );
 
-  const removeFromWhitelist = useCallback(
-    async (ipId: number) => {
-      try {
-        console.log("🔧 [DEBUG] removeFromWhitelist iniciado:", ipId);
-        setLoading(true);
-        setError(null);
+  const removeFromWhitelist = useCallback(async (ipId: number) => {
+    try {
+      console.log("🔧 [DEBUG] removeFromWhitelist iniciado:", ipId);
+      setLoading(true);
+      setError(null);
 
-        const result = await window.electronAPI.removeWhitelistIP(ipId);
-        console.log("🔧 [DEBUG] Resultado removeWhitelistIP:", result);
+      const result = await window.electronAPI.removeWhitelistIP(ipId);
+      console.log("🔧 [DEBUG] Resultado removeWhitelistIP:", result);
 
-        if (result.success) {
-          // ✅ Actualizar estado local inmediatamente
-          setWhitelist((prev) => prev.filter((entry) => entry.id !== ipId));
-          console.log("🔧 [DEBUG] IP removida del estado local");
-          return { success: true };
-        } else {
-          setError(result.error);
-          console.error("🔧 [DEBUG] Error en removeWhitelistIP:", result.error);
-          return { success: false, error: result.error };
-        }
-      } catch (err) {
-        const errorMsg = `Error removing from whitelist: ${err}`;
-        setError(errorMsg);
-        console.error("🔧 [DEBUG] Excepción en removeFromWhitelist:", err);
-        return { success: false, error: errorMsg };
-      } finally {
-        setLoading(false);
+      if (result.success) {
+        // ✅ Actualizar estado local inmediatamente
+        setWhitelist((prev) => prev.filter((entry) => entry.id !== ipId));
+        console.log("🔧 [DEBUG] IP removida del estado local");
+        return { success: true };
+      } else {
+        setError(result.error);
+        console.error("🔧 [DEBUG] Error en removeWhitelistIP:", result.error);
+        return { success: false, error: result.error };
       }
-    },
-    []
-  );
+    } catch (err) {
+      const errorMsg = `Error removing from whitelist: ${err}`;
+      setError(errorMsg);
+      console.error("🔧 [DEBUG] Excepción en removeFromWhitelist:", err);
+      return { success: false, error: errorMsg };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     console.log("🔧 [DEBUG] useWhitelist useEffect - cargando inicial");

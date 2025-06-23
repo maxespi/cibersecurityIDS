@@ -63,7 +63,6 @@ const App: React.FC = () => {
             <Navigation
                 activeView={activeView}
                 onViewChange={setActiveView}
-                electronAPI={electronAPI}
             />
 
             <main className="max-w-7xl mx-auto px-6 pb-8">

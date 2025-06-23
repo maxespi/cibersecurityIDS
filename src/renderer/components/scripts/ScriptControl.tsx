@@ -17,8 +17,22 @@ const ScriptControl: React.FC<{ electronAPI: any }> = ({ electronAPI }) => {
     const detectedIPs = electronAPI.scriptState.detectedIPs;
     const blockedIPs = electronAPI.scriptState.blockedIPs;
 
-    const handleStartScript = () => {
-        electronAPI.startScriptExecution(config.interval, config.autoFirewall);
+    const handleStartScript = async () => {
+        try {
+            console.log('🔧 [FRONTEND] Iniciando script...');
+
+            // Usar cualquiera de las dos funciones (son iguales):
+            const result = await electronAPI.startScriptExecution('detectIntrusos');
+            // O también funciona: await electronAPI.runScript('detectIntrusos');
+
+            if (result.success) {
+                console.log('🔧 [FRONTEND] Script iniciado:', result.message);
+            } else {
+                console.error('🔧 [FRONTEND] Error iniciando script:', result.error);
+            }
+        } catch (error) {
+            console.error('🔧 [FRONTEND] Excepción iniciando script:', error);
+        }
     };
 
     const handleStopScript = () => {
@@ -101,8 +115,8 @@ const ScriptControl: React.FC<{ electronAPI: any }> = ({ electronAPI }) => {
                             <button
                                 onClick={isRunning ? handleStopScript : handleStartScript}
                                 className={`w-full flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all ${isRunning
-                                        ? 'bg-red-500 hover:bg-red-600 text-white'
-                                        : 'bg-green-500 hover:bg-green-600 text-white'
+                                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                                    : 'bg-green-500 hover:bg-green-600 text-white'
                                     }`}
                             >
                                 {isRunning ? (
@@ -246,8 +260,8 @@ const ScriptControl: React.FC<{ electronAPI: any }> = ({ electronAPI }) => {
                                     <div key={index} className="flex items-center justify-between bg-white bg-opacity-10 rounded-lg p-2">
                                         <span className="text-white font-mono text-sm">{ip}</span>
                                         <span className={`text-xs px-2 py-1 rounded ${blockedIPs.includes(ip)
-                                                ? 'bg-red-500 text-white'
-                                                : 'bg-yellow-500 text-black'
+                                            ? 'bg-red-500 text-white'
+                                            : 'bg-yellow-500 text-black'
                                             }`}>
                                             {blockedIPs.includes(ip) ? 'Bloqueada' : 'Detectada'}
                                         </span>

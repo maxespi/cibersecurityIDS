@@ -61,9 +61,8 @@ const Navigation: React.FC<NavigationProps> = ({ activeView, onViewChange }) => 
         }
     ];
 
-    const handleNavClick = (viewId: string) => {
-        console.log('🔧 Navigation click:', viewId);
-        onViewChange(viewId as ActiveView); // ✅ Usar React navigation, NO Electron
+    const handleNavClick = (viewId: ActiveView) => {
+        onViewChange(viewId);
     };
 
     return (

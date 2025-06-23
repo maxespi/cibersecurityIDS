@@ -56,10 +56,11 @@ function createWindow() {
 
     mainWindow.setMenuBarVisibility(false);
 
-    mainWindow.webContents.on('did-finish-load', () => {
-        console.log('La aplicación se ha abierto.');
-        //mainWindow.webContents.send('user-logged-in', 'admin');
-    });
+    // mainWindow.webContents.on('did-finish-load', () => {
+    //     console.log('La aplicación se ha abierto.');
+    //     // ❌ COMENTAR - esto puede causar reinicio
+    //     // mainWindow.webContents.send('user-logged-in', 'admin');
+    // });
 
     // En desarrollo, abrir DevTools
     if (process.env.NODE_ENV === 'development') {
@@ -92,17 +93,17 @@ app.whenReady().then(async () => {
         const mainWindow = createWindow();
 
         // Handlers de navegación
-        ipcMain.handle('navigate-to-scripts', () => {
-            mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'scriptsView.html'));
-        });
-
-        ipcMain.handle('navigate-to-logs', () => {
-            mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'logsView.html'));
-        });
-
-        ipcMain.handle('navigate-to-firewall', () => {
-            mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'firewallView.html'));
-        });
+        /*   ipcMain.handle('navigate-to-scripts', () => {
+              mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'scriptsView.html'));
+          });
+  
+          ipcMain.handle('navigate-to-logs', () => {
+              mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'logsView.html'));
+          });
+  
+          ipcMain.handle('navigate-to-firewall', () => {
+              mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'firewallView.html'));
+          }); */
 
     } catch (error) {
         console.error('Unable to connect to the database:', error);
@@ -143,38 +144,70 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Script execution
 ipcMain.handle('run-script', async (event, scriptName) => {
-    const scriptPath = path.join(scriptRoot, scriptName);
-    const logPath = logRoot;
-    const configPath = configRoot;
+    console.log(`🔧 [BACKEND] Ejecutando script: ${scriptName}`);
 
-    return new Promise((resolve, reject) => {
-        const script = spawn('powershell.exe', [
-            '-File', scriptPath,
-            '-LogPath', logPath,
-            '-ConfigPath', configPath
-        ], { env: { ...process.env, LANG: 'en_US.UTF-8' } });
+    try {
+        const scriptPath = path.join(__dirname, 'scripts', `${scriptName}.ps1`);
 
-        script.stdout.on('data', (data) => {
-            event.sender.send('log-data', data.toString());
+        if (!fs.existsSync(scriptPath)) {
+            console.error(`🔧 [BACKEND] Script no encontrado: ${scriptPath}`);
+            throw new Error(`Script ${scriptName} no encontrado en ${scriptPath}`);
+        }
+
+        console.log(`🔧 [BACKEND] Iniciando PowerShell script: ${scriptPath}`);
+
+        const childProcess = spawn('powershell.exe', [
+            '-ExecutionPolicy', 'Bypass',
+            '-File', scriptPath
+        ], {
+            stdio: ['pipe', 'pipe', 'pipe'],
+            shell: false
         });
 
-        script.stderr.on('data', (data) => {
-            event.sender.send('log-error', data.toString());
-        });
-
-        script.on('close', (code) => {
-            event.sender.send('log-close', `Proceso terminado, codigo: ${code}`);
-            if (code === 0) {
-                resolve({ success: true });
-            } else {
-                reject(new Error(`Script exited with code ${code}`));
+        // Manejar salida estándar
+        childProcess.stdout.on('data', (data) => {
+            const output = data.toString().trim();
+            if (output) {
+                console.log('🔧 [SCRIPT-OUT]:', output);
+                event.sender.send('log-data', output);
             }
         });
 
-        script.on('error', (error) => {
-            reject(error);
+        // Manejar errores
+        childProcess.stderr.on('data', (data) => {
+            const error = data.toString().trim();
+            if (error) {
+                console.error('🔧 [SCRIPT-ERR]:', error);
+                event.sender.send('log-error', error);
+            }
         });
-    });
+
+        // Manejar cierre del proceso
+        childProcess.on('close', (code) => {
+            const message = `Script ${scriptName} terminado con código: ${code}`;
+            console.log('🔧 [SCRIPT-CLOSE]:', message);
+            event.sender.send('log-close', message);
+        });
+
+        // Manejar errores del proceso
+        childProcess.on('error', (error) => {
+            console.error('🔧 [SCRIPT-PROCESS-ERROR]:', error);
+            event.sender.send('log-error', `Error del proceso: ${error.message}`);
+        });
+
+        return {
+            success: true,
+            message: `Script ${scriptName} iniciado correctamente`,
+            pid: childProcess.pid
+        };
+
+    } catch (error) {
+        console.error('🔧 [BACKEND] Error executing script:', error);
+        return {
+            success: false,
+            error: error.message || 'Error desconocido ejecutando script'
+        };
+    }
 });
 
 // Log content loading
@@ -558,18 +591,15 @@ ipcMain.handle('get-ip-statistics', async (event) => {
 
 // Script status
 ipcMain.handle('get-script-status', async (event) => {
-    try {
-        return {
-            success: true,
-            data: {
-                isRunning: false,
-                lastRun: new Date().toISOString(),
-                interval: 30
-            }
-        };
-    } catch (error) {
-        return { success: false, error: error.message };
-    }
+    // Aquí puedes implementar lógica para verificar si hay scripts corriendo
+    return {
+        success: true,
+        data: {
+            isRunning: false,
+            lastRun: new Date().toISOString(),
+            interval: 30
+        }
+    };
 });
 
 // AGREGAR HANDLER FALTANTE PARA LOGS

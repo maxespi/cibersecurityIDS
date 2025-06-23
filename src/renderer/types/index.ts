@@ -65,11 +65,6 @@ export interface ElectronAPI {
     password: string
   ): Promise<APIResponse<{ token: string }>>;
 
-  // Navigation
-  navigateToScripts(): Promise<void>;
-  navigateToLogs(): Promise<void>;
-  navigateToFirewall(): Promise<void>;
-
   // Firewall
   getBlockedIPs(): Promise<APIResponse<{ total: BlockedIP[] }>>;
   getFirewallStats(): Promise<APIResponse<FirewallStats>>;
@@ -80,25 +75,40 @@ export interface ElectronAPI {
 
   // Scripts
   runScript: (scriptName: string) => Promise<APIResponse<any>>;
+  startScriptExecution: (scriptName: string) => Promise<APIResponse<any>>; // ✅ AGREGAR
   getScriptStatus: () => Promise<
     APIResponse<{ isRunning: boolean; lastRun: string; interval: number }>
   >;
-  stopScript(): Promise<APIResponse<void>>;
+  stopScript?: () => Promise<APIResponse<void>>;
 
   // Logs
-  getLogs(type: LogType): Promise<APIResponse<LogEntry[]>>;
-  getRecentLogs(limit?: number): Promise<APIResponse<LogEntry[]>>;
-  searchLogs(
+  getLogs?(type: LogType): Promise<APIResponse<LogEntry[]>>;
+  getRecentLogs?(limit?: number): Promise<APIResponse<LogEntry[]>>;
+  searchLogs?(
     query: string,
     exactMatch?: boolean
   ): Promise<APIResponse<LogEntry[]>>;
 
-  // Events
-  onAppOpened(callback: () => void): () => void;
-  onUserLoggedIn(callback: (username: string) => void): () => void;
-  onLogUpdate(callback: (log: LogEntry) => void): () => void;
-  onScriptOutput(callback: (output: string) => void): () => void;
-  onFirewallUpdate(callback: () => void): () => void;
+  // Whitelist
+  getWhitelistIPs(): Promise<APIResponse<any[]>>;
+  addWhitelistIP(data: any): Promise<APIResponse<any>>;
+  removeWhitelistIP(ipId: number): Promise<APIResponse<void>>;
+
+  // Windows Event Analysis
+  analyzeWindowsEvents(options: any): Promise<APIResponse<any>>;
+  updateFirewallRules(options: any): Promise<APIResponse<any>>;
+
+  // Events con cleanup functions
+  onAppOpened?(callback: () => void): (() => void) | void;
+  onUserLoggedIn?(callback: (username: string) => void): (() => void) | void;
+  onLogUpdate?(callback: (log: LogEntry) => void): (() => void) | void;
+  onScriptOutput?(callback: (output: string) => void): (() => void) | void;
+  onFirewallUpdate?(callback: () => void): (() => void) | void;
+
+  // Script events
+  onLogData?(callback: (data: string) => void): (() => void) | void;
+  onLogError?(callback: (data: string) => void): (() => void) | void;
+  onLogClose?(callback: (message: string) => void): (() => void) | void;
 }
 
 declare global {

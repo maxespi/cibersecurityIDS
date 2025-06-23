@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Plus, Trash2, Shield, Clock, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useWhitelist } from '../../hooks/useWhitelist';
 
@@ -9,20 +9,21 @@ const WhitelistManager: React.FC = () => {
     const [permanent, setPermanent] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    // ✅ Usar useCallback para evitar re-renders
+    const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
-        e.stopPropagation(); // ✅ Prevenir propagación de eventos
-        
-        console.log('🔧 [DEBUG] Formulario submit iniciado'); // DEBUG
-        
+        e.stopPropagation();
+
+        console.log('🔧 [DEBUG] Formulario submit iniciado');
+
         if (!newIP.trim()) {
             console.log('🔧 [DEBUG] IP vacía, retornando');
             return;
         }
 
         setIsSubmitting(true);
-        console.log('🔧 [DEBUG] Agregando IP:', newIP); // DEBUG
-        
+        console.log('🔧 [DEBUG] Agregando IP:', newIP);
+
         try {
             const result = await addToWhitelist({
                 ip: newIP.trim(),
@@ -31,13 +32,12 @@ const WhitelistManager: React.FC = () => {
                 expiresAt: permanent ? undefined : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
             });
 
-            console.log('🔧 [DEBUG] Resultado:', result); // DEBUG
+            console.log('🔧 [DEBUG] Resultado:', result);
 
             if (result.success) {
                 console.log('🔧 [DEBUG] IP agregada exitosamente, limpiando formulario');
                 setNewIP('');
                 setDescription('');
-                // ✅ NO NAVEGAR - mantener en whitelist
                 console.log('🔧 [DEBUG] Formulario limpiado, permaneciendo en whitelist');
             } else {
                 console.error('🔧 [DEBUG] Error:', result.error);
@@ -48,36 +48,43 @@ const WhitelistManager: React.FC = () => {
             setIsSubmitting(false);
             console.log('🔧 [DEBUG] Submit completado');
         }
-    };
+    }, [newIP, description, permanent, addToWhitelist]);
 
-    const handleRemove = async (ipId: number) => {
+    // ✅ Usar useCallback para handleRemove
+    const handleRemove = useCallback(async (ipId: number) => {
         console.log('🔧 [DEBUG] Removiendo IP:', ipId);
         if (confirm('¿Estás seguro de que quieres eliminar esta IP de la whitelist?')) {
             const result = await removeFromWhitelist(ipId);
             console.log('🔧 [DEBUG] Resultado remove:', result);
         }
-    };
+    }, [removeFromWhitelist]);
 
+    // ✅ Memorizar estadísticas para evitar recálculos
+    const stats = useMemo(() => {
+        const total = whitelist.length;
+        const permanent = whitelist.filter(entry => entry.permanent).length;
+        const temporary = total - permanent;
+
+        return { total, permanent, temporary };
+    }, [whitelist]);
+
+    // ✅ Solo hacer log una vez por render
     console.log('🔧 [DEBUG] WhitelistManager render, whitelist length:', whitelist.length);
 
     return (
         <div className="space-y-6">
-            {/* Header con estadísticas */}
+            {/* Header con estadísticas - usar stats memorizadas */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="glass-effect rounded-xl p-6 text-center">
-                    <div className="text-3xl font-bold text-green-400">{whitelist.length}</div>
+                    <div className="text-3xl font-bold text-green-400">{stats.total}</div>
                     <div className="text-white text-opacity-70">IPs en Whitelist</div>
                 </div>
                 <div className="glass-effect rounded-xl p-6 text-center">
-                    <div className="text-3xl font-bold text-blue-400">
-                        {whitelist.filter(entry => entry.permanent).length}
-                    </div>
+                    <div className="text-3xl font-bold text-blue-400">{stats.permanent}</div>
                     <div className="text-white text-opacity-70">Permanentes</div>
                 </div>
                 <div className="glass-effect rounded-xl p-6 text-center">
-                    <div className="text-3xl font-bold text-yellow-400">
-                        {whitelist.filter(entry => !entry.permanent).length}
-                    </div>
+                    <div className="text-3xl font-bold text-yellow-400">{stats.temporary}</div>
                     <div className="text-white text-opacity-70">Temporales</div>
                 </div>
             </div>
@@ -90,7 +97,7 @@ const WhitelistManager: React.FC = () => {
                         Gestión de Lista Blanca
                     </h3>
                     <button
-                        type="button" // ✅ Especificar tipo
+                        type="button"
                         onClick={loadWhitelist}
                         disabled={loading}
                         className="p-2 rounded-lg bg-white bg-opacity-20 text-white hover:bg-opacity-30 transition-all disabled:opacity-50"
@@ -152,7 +159,7 @@ const WhitelistManager: React.FC = () => {
                     </div>
                 </form>
 
-                {/* Tabla */}
+                {/* Tabla - Renderizado condicional optimizado */}
                 <div className="overflow-x-auto">
                     {loading && whitelist.length === 0 ? (
                         <div className="flex items-center justify-center py-8">
@@ -183,8 +190,8 @@ const WhitelistManager: React.FC = () => {
                                         <td className="py-3 px-4 text-white text-opacity-90">{entry.description || '-'}</td>
                                         <td className="py-3 px-4">
                                             <span className={`px-2 py-1 rounded text-xs font-medium ${entry.permanent
-                                                    ? 'bg-green-500 bg-opacity-20 text-green-400'
-                                                    : 'bg-yellow-500 bg-opacity-20 text-yellow-400'
+                                                ? 'bg-green-500 bg-opacity-20 text-green-400'
+                                                : 'bg-yellow-500 bg-opacity-20 text-yellow-400'
                                                 }`}>
                                                 {entry.permanent ? (
                                                     <>
@@ -204,7 +211,7 @@ const WhitelistManager: React.FC = () => {
                                         </td>
                                         <td className="py-3 px-4 text-right">
                                             <button
-                                                type="button" // ✅ Especificar tipo
+                                                type="button"
                                                 onClick={() => handleRemove(entry.id)}
                                                 disabled={loading}
                                                 className="text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
@@ -224,4 +231,4 @@ const WhitelistManager: React.FC = () => {
     );
 };
 
-export default WhitelistManager;
+export default React.memo(WhitelistManager); // ✅ Memoizar componente
