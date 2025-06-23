@@ -43,9 +43,11 @@ function createWindow() {
         icon: path.join(__dirname, 'hacker.ico') // Si tienes un icono
     });
 
-    mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'main.html')).catch((err) => {
+    /* mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'main.html')).catch((err) => {
         console.error('Error loading main.html:', err);
-    });
+    }); */
+    mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'main-react.html'))
+
 
     mainWindow.setMenuBarVisibility(false);
 
