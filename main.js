@@ -21,6 +21,10 @@ const Validator = require('./src/utils/validation');
 const { ENVIRONMENT, IS_DEVELOPMENT } = require('./src/config/constants');
 const pathManager = require('./src/config/paths');
 
+// Importar servicios centralizados
+const FileService = require('./src/services/FileService');
+const GeolocationService = require('./src/services/GeolocationService');
+
 // Importar nuevos modelos
 const DetectedIP = require('./db/models/DetectedIP');
 const WhitelistIP = require('./db/models/WhitelistIP');
@@ -419,25 +423,22 @@ function checkWindowsServer() {
 }
 
 // Log content loading
-ipcMain.on('load-log-content', (event) => {
+ipcMain.on('load-log-content', async (event) => {
     const logFilePath = appPaths.registroIntentos;
-    const logDir = path.dirname(logFilePath);
 
-    if (!fs.existsSync(logDir)) {
-        fs.mkdirSync(logDir, { recursive: true });
+    // Verificar si el archivo existe, si no, crearlo con headers
+    if (!await FileService.fileExists(logFilePath)) {
+        const headers = 'IP,Fecha,Usuario,TipoInicioSesion,CodigoError,Dominio,NombreEquipo\n';
+        await FileService.writeFile(logFilePath, headers);
     }
 
-    if (!fs.existsSync(logFilePath)) {
-        fs.writeFileSync(logFilePath, 'IP,Fecha,Usuario,TipoInicioSesion,CodigoError,Dominio,NombreEquipo\n');
+    const result = await FileService.readFile(logFilePath);
+    if (result.success) {
+        event.reply('log-content', result.content);
+    } else {
+        event.reply('log-content', `Error al leer el archivo de log: ${result.error}`);
+        logger.error('Error cargando contenido de log', { error: result.error });
     }
-
-    fs.readFile(logFilePath, 'utf-8', (err, data) => {
-        if (err) {
-            event.reply('log-content', `Error al leer el archivo de log: ${err.message}`);
-        } else {
-            event.reply('log-content', data);
-        }
-    });
 });
 
 ipcMain.on('load-log-content2', (event) => {
@@ -512,15 +513,15 @@ ipcMain.handle('remove-ip-from-firewall', async (event, ip) => {
     }
 });
 
-ipcMain.handle('get-ip-geolocation', async (event, ip) => {
+ipcMain.handle('get-ip-geolocation', Validator.createIPCHandler('get-geolocation', async (event, { ip }) => {
     try {
-        const result = await firewallManager.getIPGeolocation(ip);
+        const result = await GeolocationService.getLocation(ip);
         return result;
     } catch (error) {
-        logger.error('Error al obtener geolocalización', { error: error.message });
+        logger.error('Error al obtener geolocalización', { ip, error: error.message });
         return { success: false, error: error.message };
     }
-});
+}));
 
 ipcMain.handle('check-admin-privileges', async (event) => {
     return new Promise((resolve) => {
