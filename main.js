@@ -17,6 +17,10 @@ const logger = require('./src/utils/logger');
 // Importar sistema de validación
 const Validator = require('./src/utils/validation');
 
+// Importar configuración centralizada
+const { ENVIRONMENT, IS_DEVELOPMENT } = require('./src/config/constants');
+const pathManager = require('./src/config/paths');
+
 // Importar nuevos modelos
 const DetectedIP = require('./db/models/DetectedIP');
 const WhitelistIP = require('./db/models/WhitelistIP');
@@ -25,18 +29,14 @@ const WindowsEvent = require('./db/models/WindowsEvent');
 const userDataPath = app.getPath('userData');
 
 // Habilitar recarga automática en desarrollo
-if (process.env.NODE_ENV === 'development') {
+if (IS_DEVELOPMENT) {
     require('electron-reload')(__dirname, {
         electron: path.join(__dirname, 'node_modules', '.bin', 'electron'),
     });
 }
 
-// Leer configuración del archivo config.json
-const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf-8'));
-const environment = process.env.NODE_ENV || 'development';
-const scriptRoot = config[environment].scriptRoot;
-const logRoot = path.join(userDataPath, 'logs');
-const configRoot = config[environment].configRoot;
+// Obtener rutas desde PathManager centralizado
+const appPaths = pathManager.getAppFilePaths();
 
 function createWindow() {
     const mainWindow = new BrowserWindow({
@@ -77,7 +77,7 @@ function createWindow() {
 app.whenReady().then(async () => {
     try {
         // Inicializar sistema de logging
-        logger.initialize(logRoot);
+        logger.initialize(pathManager.getLogPath());
         logger.info('Aplicación iniciando...');
 
         await sequelize.authenticate();
@@ -135,18 +135,14 @@ app.on('window-all-closed', () => {
 // Manejo de errores
 process.on('uncaughtException', (error) => {
     logger.error('Excepción no capturada', { error: error.message, stack: error.stack });
-    if (!fs.existsSync(logRoot)) {
-        fs.mkdirSync(logRoot, { recursive: true });
-    }
-    fs.writeFileSync(path.join(logRoot, 'error.log'), `Uncaught Exception: ${error.message}\n${error.stack}`);
+    pathManager.ensureDirectoryExists(pathManager.getLogPath());
+    fs.writeFileSync(appPaths.errorLog, `Uncaught Exception: ${error.message}\n${error.stack}`);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
     logger.error('Promesa rechazada no manejada', { reason: reason });
-    if (!fs.existsSync(logRoot)) {
-        fs.mkdirSync(logRoot, { recursive: true });
-    }
-    fs.writeFileSync(path.join(logRoot, 'error.log'), `Unhandled Rejection: ${reason}\n${promise}`);
+    pathManager.ensureDirectoryExists(pathManager.getLogPath());
+    fs.writeFileSync(appPaths.errorLog, `Unhandled Rejection: ${reason}\n${promise}`);
 });
 
 // ================ HANDLERS EXISTENTES ================
@@ -424,7 +420,7 @@ function checkWindowsServer() {
 
 // Log content loading
 ipcMain.on('load-log-content', (event) => {
-    const logFilePath = path.join(logRoot, 'registro_intentos.csv');
+    const logFilePath = appPaths.registroIntentos;
     const logDir = path.dirname(logFilePath);
 
     if (!fs.existsSync(logDir)) {
@@ -445,7 +441,7 @@ ipcMain.on('load-log-content', (event) => {
 });
 
 ipcMain.on('load-log-content2', (event) => {
-    const logFilePath = path.join(logRoot, 'salida_ips.txt');
+    const logFilePath = appPaths.salidaIps;
     const logDir = path.dirname(logFilePath);
 
     if (!fs.existsSync(logDir)) {
@@ -661,16 +657,16 @@ ipcMain.handle('update-firewall-rules', async (event, options) => {
         }
 
         // 2. Actualizar firewall (usar script PowerShell existente)
-        const scriptPath = path.join(scriptRoot, 'BlockIpAndUpdateForOneRule.ps1');
-        const tempIpsFile = path.join(logRoot, 'temp_ips_to_block.txt');
+        const scriptPath = appPaths.blockIpScript;
+        const tempIpsFile = appPaths.tempIpsToBlock;
         fs.writeFileSync(tempIpsFile, ipsToActuallyBlock.join('\n'));
 
         await new Promise((resolve, reject) => {
             const powershellProcess = spawn('powershell.exe', [
                 '-ExecutionPolicy', 'Bypass',
                 '-File', scriptPath,
-                '-LogPath', logRoot,
-                '-ConfigPath', configRoot
+                '-LogPath', pathManager.getLogPath(),
+                '-ConfigPath', pathManager.getConfigPath()
             ]);
 
             powershellProcess.on('close', (code) => {
@@ -989,7 +985,7 @@ async function getUserLogs() {
 async function getScriptLogs() {
     try {
         // Leer logs de script desde archivo
-        const logFile = path.join(logRoot, 'registro_intentos.csv');
+        const logFile = appPaths.registroIntentos;
 
         if (!fs.existsSync(logFile)) {
             return [];
@@ -1122,7 +1118,7 @@ ipcMain.handle('clear-detected-ips', async (event) => {
         console.log('🔧 [BACKEND] Limpiando IPs detectadas...');
 
         // Limpiar archivo de IPs
-        const ipsFile = path.join(logRoot, 'salida_ips.txt');
+        const ipsFile = appPaths.salidaIps;
 
         if (fs.existsSync(ipsFile)) {
             fs.writeFileSync(ipsFile, '');

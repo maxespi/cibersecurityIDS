@@ -1,9 +1,16 @@
 const { Sequelize } = require('sequelize');
-const path = require('path');
+const { DATABASE } = require('../../src/config/constants');
 
 const sequelize = new Sequelize({
-    dialect: 'sqlite',
-    storage: path.join(__dirname, 'database.sqlite')
+    dialect: DATABASE.DIALECT,
+    storage: DATABASE.STORAGE,
+    logging: DATABASE.LOGGING,
+    pool: DATABASE.POOL,
+    define: {
+        timestamps: true,
+        underscored: false,
+        freezeTableName: true
+    }
 });
 
 module.exports = sequelize;
