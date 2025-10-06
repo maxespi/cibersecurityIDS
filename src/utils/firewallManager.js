@@ -1,6 +1,7 @@
 // src/utils/firewallManager.js
 const { spawn } = require('child_process');
 const { promisify } = require('util');
+const logger = require('./logger');
 
 class FirewallManager {
     constructor() {
@@ -40,7 +41,7 @@ class FirewallManager {
     */
     async blockMultipleIPs(ipsToBlock) {
         try {
-            console.log(`🔧 [FIREWALL] Bloqueando ${ipsToBlock.length} IPs...`);
+            logger.firewall(`Bloqueando ${ipsToBlock.length} IPs...`);
 
             // Validar IPs
             const validIPs = ipsToBlock.filter(ip => this.isValidIP(ip));

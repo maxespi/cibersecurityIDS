@@ -11,6 +11,12 @@ const scanForIpIn4625 = require('./src/utils/scanForIpIn4625');
 const FirewallManager = require('./src/utils/firewallManager');
 const firewallManager = new FirewallManager();
 
+// Importar sistema de logging centralizado
+const logger = require('./src/utils/logger');
+
+// Importar sistema de validación
+const Validator = require('./src/utils/validation');
+
 // Importar nuevos modelos
 const DetectedIP = require('./db/models/DetectedIP');
 const WhitelistIP = require('./db/models/WhitelistIP');
@@ -43,14 +49,16 @@ function createWindow() {
             contextIsolation: true,
             enableRemoteModule: false,
             nodeIntegration: false,
-            webSecurity: false // Necesario para cargar React desde CDN
+            webSecurity: true, // SECURITY FIX: Enable web security
+            allowRunningInsecureContent: false,
+            experimentalFeatures: false
         },
         autoHideMenuBar: true,
         icon: path.join(__dirname, 'hacker.ico') // Si tienes un icono
     });
 
     /* mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'main.html')).catch((err) => {
-        console.error('Error loading main.html:', err);
+        logger.error('Error cargando main.html', { error: err.message });
     }); */
     mainWindow.loadFile(path.join(__dirname, 'src', 'views', 'main-react.html'))
 
@@ -68,7 +76,12 @@ function createWindow() {
 // ================ INICIALIZACIÓN ================
 app.whenReady().then(async () => {
     try {
+        // Inicializar sistema de logging
+        logger.initialize(logRoot);
+        logger.info('Aplicación iniciando...');
+
         await sequelize.authenticate();
+        logger.info('Conexión a base de datos establecida');
 
         await sequelize.sync({
             alter: process.env.FORCE_SYNC === 'true',
@@ -79,13 +92,14 @@ app.whenReady().then(async () => {
         const existingUser = await User.findOne({ where: { username: 'admin' } });
         if (!existingUser) {
             await User.create({ username: 'admin', password: 'admin' });
-            console.log('New user created');
+            logger.info('Usuario admin creado');
         } else {
-            console.log('User "admin" already exists.');
+            logger.info('Usuario admin ya existe');
         }
 
         // Crear ventana principal
         const mainWindow = createWindow();
+        logger.info('Ventana principal creada');
 
         // Handlers de navegación
         /*   ipcMain.handle('navigate-to-scripts', () => {
@@ -101,7 +115,7 @@ app.whenReady().then(async () => {
           }); */
 
     } catch (error) {
-        console.error('Unable to connect to the database:', error);
+        logger.error('Error al conectar con la base de datos', { error: error.message });
         createWindow();
     }
 
@@ -120,7 +134,7 @@ app.on('window-all-closed', () => {
 
 // Manejo de errores
 process.on('uncaughtException', (error) => {
-    console.error('Uncaught Exception:', error);
+    logger.error('Excepción no capturada', { error: error.message, stack: error.stack });
     if (!fs.existsSync(logRoot)) {
         fs.mkdirSync(logRoot, { recursive: true });
     }
@@ -128,7 +142,7 @@ process.on('uncaughtException', (error) => {
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled Rejection:', reason);
+    logger.error('Promesa rechazada no manejada', { reason: reason });
     if (!fs.existsSync(logRoot)) {
         fs.mkdirSync(logRoot, { recursive: true });
     }
@@ -139,7 +153,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Script execution
 ipcMain.handle('run-script', async (event, scriptName) => {
-    console.log(`🔧 [BACKEND] Ejecutando script NATIVO: ${scriptName}`);
+    logger.debug(`Ejecutando script nativo: ${scriptName}`);
 
     try {
         let result;
@@ -147,7 +161,7 @@ ipcMain.handle('run-script', async (event, scriptName) => {
         switch (scriptName) {
             case 'detectIntrusos':
             case 'logs_for_ips_4625':
-                console.log('🔧 [BACKEND] Ejecutando análisis de IPs nativo...');
+                logger.security('Ejecutando análisis de IPs nativo...');
 
                 // ✅ USAR FUNCIÓN JAVASCRIPT NATIVA
                 result = await executeIPAnalysis(event);
@@ -155,7 +169,7 @@ ipcMain.handle('run-script', async (event, scriptName) => {
 
             case 'extractIPs':
             case 'extraer_ips_4625':
-                console.log('🔧 [BACKEND] Ejecutando extracción de IPs nativo...');
+                logger.security('Ejecutando extracción de IPs nativo...');
 
                 // ✅ USAR FUNCIÓN JAVASCRIPT NATIVA
                 result = await executeIPExtraction(event);
@@ -163,7 +177,7 @@ ipcMain.handle('run-script', async (event, scriptName) => {
 
             case 'blockIPs':
             case 'BlockIpAndUpdateForOneRule':
-                console.log('🔧 [BACKEND] Ejecutando bloqueo de IPs nativo...');
+                logger.firewall('Ejecutando bloqueo de IPs nativo...');
 
                 // ✅ USAR FIREWALL MANAGER NATIVO
                 result = await executeFirewallUpdate(event);
@@ -180,7 +194,7 @@ ipcMain.handle('run-script', async (event, scriptName) => {
         };
 
     } catch (error) {
-        console.error('🔧 [BACKEND] Error executing native script:', error);
+        logger.error('Error ejecutando script nativo', { script: scriptName, error: error.message });
         event.sender.send('log-error', `Error: ${error.message}`);
 
         return {
@@ -388,7 +402,7 @@ async function getSecurityStatistics() {
         };
 
     } catch (error) {
-        console.error('❌ Error obteniendo estadísticas:', error);
+        logger.error('Error obteniendo estadísticas', { error: error.message });
         return {
             success: false,
             error: error.message
@@ -403,7 +417,7 @@ function checkWindowsServer() {
         const os = execSync('wmic os get Caption', { encoding: 'utf8' });
         return os.includes('Server');
     } catch (error) {
-        console.warn('No se pudo verificar el sistema operativo:', error.message);
+        logger.warn('No se pudo verificar el sistema operativo', { error: error.message });
         return true; // Asumir que es compatible si no se puede verificar
     }
 }
@@ -452,15 +466,23 @@ ipcMain.on('load-log-content2', (event) => {
 });
 
 // Authentication
-ipcMain.handle('login', async (event, username, password) => {
+ipcMain.handle('login', Validator.createIPCHandler('login', async (event, { username, password }) => {
     try {
         const user = await User.findOne({ where: { username, password } });
-        return { success: !!user };
+        const success = !!user;
+
+        if (success) {
+            logger.info('Login exitoso', { username });
+        } else {
+            logger.warn('Intento de login fallido', { username });
+        }
+
+        return { success };
     } catch (error) {
-        console.error('Error during login:', error);
+        logger.error('Error durante login', { username, error: error.message });
         return { success: false };
     }
-});
+}));
 
 // ================ FIREWALL HANDLERS ================
 
@@ -469,7 +491,7 @@ ipcMain.handle('get-blocked-ips', async (event) => {
         const result = await firewallManager.getBlockedIPs();
         return result;
     } catch (error) {
-        console.error('Error al obtener IPs bloqueadas:', error);
+        logger.error('Error al obtener IPs bloqueadas', { error: error.message });
         return { success: false, error: error.message };
     }
 });
@@ -479,7 +501,7 @@ ipcMain.handle('get-firewall-stats', async (event) => {
         const stats = await firewallManager.getFirewallStats();
         return { success: true, data: stats };
     } catch (error) {
-        console.error('Error al obtener estadísticas del firewall:', error);
+        logger.error('Error al obtener estadísticas del firewall', { error: error.message });
         return { success: false, error: error.message };
     }
 });
@@ -489,7 +511,7 @@ ipcMain.handle('remove-ip-from-firewall', async (event, ip) => {
         const result = await firewallManager.removeIPFromFirewall(ip);
         return result;
     } catch (error) {
-        console.error('Error al eliminar IP del firewall:', error);
+        logger.error('Error al eliminar IP del firewall', { error: error.message });
         return { success: false, error: error.message };
     }
 });
@@ -499,7 +521,7 @@ ipcMain.handle('get-ip-geolocation', async (event, ip) => {
         const result = await firewallManager.getIPGeolocation(ip);
         return result;
     } catch (error) {
-        console.error('Error al obtener geolocalización:', error);
+        logger.error('Error al obtener geolocalización', { error: error.message });
         return { success: false, error: error.message };
     }
 });
