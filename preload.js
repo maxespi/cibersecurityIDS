@@ -1,6 +1,11 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
+    // ================ AUTENTICACIÓN ================
+    login: (credentials) => ipcRenderer.invoke('login', credentials),
+    onLoginSuccess: (username) => ipcRenderer.invoke('on-login-success', username),
+    closeApp: () => ipcRenderer.invoke('close-app'),
+
     // ================ SCRIPTS ================
     runScript: (scriptName) => ipcRenderer.invoke('run-script', scriptName),
     startScriptExecution: (scriptName) => ipcRenderer.invoke('run-script', scriptName), // Alias

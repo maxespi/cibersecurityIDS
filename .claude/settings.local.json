@@ -3,7 +3,11 @@
     "allow": [
       "Bash(npm run type-check:*)",
       "Bash(dir:*)",
-      "Bash(npm run dev:mock:*)"
+      "Bash(npm run dev:mock:*)",
+      "Bash(sqlite3:*)",
+      "Bash(taskkill:*)",
+      "Bash(tasklist)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []

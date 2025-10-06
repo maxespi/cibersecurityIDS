@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HADES Seguridad IDS - Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        .background-animation {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at 25% 25%, #ff6b6b22 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, #4ecdc422 0%, transparent 50%);
+            animation: backgroundShift 10s ease-in-out infinite;
+        }
+
+        @keyframes backgroundShift {
+            0%, 100% { transform: translateX(0px) translateY(0px); }
+            50% { transform: translateX(50px) translateY(-30px); }
+        }
+
+        .login-container {
+            position: relative;
+            z-index: 10;
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(10px);
+            border: 2px solid #ff6b6b;
+            border-radius: 15px;
+            padding: 40px;
+            width: 400px;
+            text-align: center;
+            box-shadow:
+                0 0 30px rgba(255, 107, 107, 0.3),
+                inset 0 0 30px rgba(255, 255, 255, 0.05);
+            animation: containerGlow 3s ease-in-out infinite;
+        }
+
+        @keyframes containerGlow {
+            0%, 100% { box-shadow: 0 0 30px rgba(255, 107, 107, 0.3), inset 0 0 30px rgba(255, 255, 255, 0.05); }
+            50% { box-shadow: 0 0 50px rgba(255, 107, 107, 0.5), inset 0 0 40px rgba(255, 255, 255, 0.1); }
+        }
+
+        .logo {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #ff6b6b;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
+            letter-spacing: 3px;
+        }
+
+        .subtitle {
+            color: #4ecdc4;
+            font-size: 1.1em;
+            margin-bottom: 30px;
+            letter-spacing: 1px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #ffffff;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.9em;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #4ecdc4;
+            border-radius: 8px;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #ff6b6b;
+            box-shadow: 0 0 15px rgba(255, 107, 107, 0.3);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .login-button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+            border: none;
+            border-radius: 8px;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .login-button:hover {
+            background: linear-gradient(45deg, #ff8e8e, #ffb3b3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .login-button:active {
+            transform: translateY(0px);
+        }
+
+        .cancel-button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(45deg, #666666, #888888);
+            border: 1px solid #999999;
+            border-radius: 8px;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .cancel-button:hover {
+            background: linear-gradient(45deg, #888888, #aaaaaa);
+            transform: translateY(-1px);
+            box-shadow: 0 3px 15px rgba(153, 153, 153, 0.3);
+        }
+
+        .cancel-button:active {
+            transform: translateY(0px);
+        }
+
+        .error-message {
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid #ff6b6b;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 15px;
+            font-size: 0.9em;
+            display: none;
+        }
+
+        .loading {
+            display: none;
+            color: #4ecdc4;
+            margin-top: 15px;
+        }
+
+        .loading .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(78, 205, 196, 0.3);
+            border-top: 2px solid #4ecdc4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .version-info {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 0.8em;
+        }
+
+        .matrix-effect {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0.1;
+            font-family: 'Courier New', monospace;
+            color: #4ecdc4;
+            font-size: 12px;
+            line-height: 1.2;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div class="background-animation"></div>
+
+    <div class="matrix-effect" id="matrix"></div>
+
+    <div class="login-container">
+        <div class="logo">HADES</div>
+        <div class="subtitle">Sistema de Detección de Intrusos</div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Usuario</label>
+                <input type="text" id="username" name="username" placeholder="Ingrese su usuario" required autocomplete="username">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Contraseña</label>
+                <input type="password" id="password" name="password" placeholder="Ingrese su contraseña" required autocomplete="current-password">
+            </div>
+
+            <button type="submit" class="login-button" id="loginButton">
+                Acceder al Sistema
+            </button>
+
+            <button type="button" class="cancel-button" id="cancelButton">
+                Cancelar y Salir
+            </button>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                Validando credenciales...
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+        </form>
+
+        <div style="margin-top: 20px; font-size: 0.8em; color: rgba(255, 255, 255, 0.5);">
+            <strong>Credenciales por defecto:</strong><br>
+            Usuario: admin | Contraseña: 123
+        </div>
+    </div>
+
+    <div class="version-info">
+        HADES v1.0.0 | Seguridad Avanzada
+    </div>
+
+    <script>
+        // Matrix effect
+        function createMatrixEffect() {
+            const matrix = document.getElementById('matrix');
+            const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!@#$%^&*()';
+
+            for (let i = 0; i < 50; i++) {
+                const span = document.createElement('span');
+                span.textContent = chars[Math.floor(Math.random() * chars.length)];
+                span.style.position = 'absolute';
+                span.style.left = Math.random() * 100 + '%';
+                span.style.top = Math.random() * 100 + '%';
+                span.style.animation = `matrixFall ${3 + Math.random() * 5}s linear infinite`;
+                span.style.animationDelay = Math.random() * 2 + 's';
+                matrix.appendChild(span);
+            }
+        }
+
+        // Add matrix fall animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes matrixFall {
+                0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+                100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        createMatrixEffect();
+
+        // Login functionality
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('errorMessage');
+            const loadingDiv = document.getElementById('loading');
+            const loginButton = document.getElementById('loginButton');
+
+            // Reset states
+            errorDiv.style.display = 'none';
+            loadingDiv.style.display = 'block';
+            loginButton.disabled = true;
+
+            try {
+                console.log('Intentando login con:', { username, password: '*'.repeat(password.length) });
+
+                const result = await window.electronAPI.login({ username, password });
+                console.log('Resultado del login:', result);
+
+                if (result.success) {
+                    // Success animation
+                    loadingDiv.innerHTML = '<div class="spinner"></div>Acceso concedido...';
+                    loadingDiv.style.color = '#4ecdc4';
+
+                    setTimeout(async () => {
+                        console.log('Login exitoso, ejecutando transición...');
+
+                        try {
+                            console.log('Llamando onLoginSuccess con username:', username);
+                            const transitionResult = await window.electronAPI.onLoginSuccess(username);
+                            console.log('Resultado de transición:', transitionResult);
+
+                            if (transitionResult && transitionResult.success) {
+                                console.log('✅ Transición exitosa');
+                            } else {
+                                console.error('❌ Error en transición:', transitionResult);
+                            }
+                        } catch (error) {
+                            console.error('❌ Error ejecutando transición:', error);
+                        }
+                    }, 1500);
+                } else {
+                    throw new Error('Credenciales incorrectas');
+                }
+            } catch (error) {
+                console.error('Error en login:', error);
+                loadingDiv.style.display = 'none';
+                errorDiv.textContent = 'Usuario o contraseña incorrectos';
+                errorDiv.style.display = 'block';
+                loginButton.disabled = false;
+
+                // Shake animation for error
+                document.querySelector('.login-container').style.animation = 'shake 0.5s ease-in-out';
+                setTimeout(() => {
+                    document.querySelector('.login-container').style.animation = 'containerGlow 3s ease-in-out infinite';
+                }, 500);
+            }
+        });
+
+        // Add shake animation
+        const shakeStyle = document.createElement('style');
+        shakeStyle.textContent = `
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                25% { transform: translateX(-10px); }
+                75% { transform: translateX(10px); }
+            }
+        `;
+        document.head.appendChild(shakeStyle);
+
+        // Cancel button functionality
+        document.getElementById('cancelButton').addEventListener('click', () => {
+            console.log('Usuario canceló el login, cerrando aplicación');
+
+            // Confirmar cierre
+            const confirmed = confirm('¿Está seguro que desea salir de HADES Seguridad IDS?');
+            if (confirmed) {
+                // Cerrar aplicación
+                if (window.electronAPI && window.electronAPI.closeApp) {
+                    window.electronAPI.closeApp();
+                } else {
+                    // Fallback
+                    window.close();
+                }
+            }
+        });
+
+        // Auto-focus username field
+        document.getElementById('username').focus();
+
+        // Handle Enter key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+            }
+        });
+
+        console.log('Login HADES cargado correctamente');
+    </script>
+</body>
+</html>

@@ -14,6 +14,60 @@ class WindowManager {
     }
 
     /**
+     * Crea la ventana de login
+     */
+    createLoginWindow() {
+        const loginWindow = new BrowserWindow({
+            width: 500,
+            height: 600,
+            resizable: false,
+            webPreferences: {
+                preload: path.join(__dirname, '../../preload.js'),
+                contextIsolation: true,
+                enableRemoteModule: false,
+                nodeIntegration: false,
+                webSecurity: true
+            },
+            autoHideMenuBar: true,
+            icon: path.join(__dirname, '../../hacker.ico'),
+            show: false,
+            frame: false, // Sin borde para look más moderno
+            transparent: true,
+            alwaysOnTop: false,
+            center: true
+        });
+
+        // Mostrar cuando esté listo
+        loginWindow.once('ready-to-show', () => {
+            loginWindow.show();
+            logger.info('Ventana de login mostrada');
+        });
+
+        // Cargar la pantalla de login
+        loginWindow.loadFile(path.join(__dirname, '../views/login-hades.html'))
+            .catch((err) => {
+                logger.error('Error cargando login.html', { error: err.message });
+            });
+
+        // Manejar cierre de ventana (solo limpieza, no cerrar app)
+        loginWindow.on('closed', () => {
+            this.windows.delete('login');
+            logger.info('Ventana de login cerrada');
+
+            // Si no hay ventana principal abierta, cerrar app
+            const mainWindow = this.windows.get('main');
+            if (!mainWindow || mainWindow.isDestroyed()) {
+                logger.info('No hay ventana principal, cerrando aplicación');
+                const { app } = require('electron');
+                app.quit();
+            }
+        });
+
+        this.windows.set('login', loginWindow);
+        return loginWindow;
+    }
+
+    /**
      * Crea la ventana principal de la aplicación
      */
     createMainWindow() {
@@ -57,11 +111,11 @@ class WindowManager {
                 });
         }
 
-        // Configurar eventos de ventana
-        this.setupWindowEvents(mainWindow);
-
         // Guardar referencia
         this.windows.set('main', mainWindow);
+
+        // Configurar eventos de ventana
+        this.setupWindowEvents(mainWindow);
 
         logger.info('Ventana principal creada', {
             width: mainWindow.getBounds().width,
@@ -72,12 +126,72 @@ class WindowManager {
     }
 
     /**
+     * Cierra la ventana de login y abre la principal
+     */
+    onLoginSuccess(username) {
+        logger.info('🔄 onLoginSuccess iniciado para usuario:', username);
+
+        try {
+            // Crear ventana principal PRIMERO
+            logger.info('🏗️ Creando ventana principal...');
+            const mainWindow = this.createMainWindow();
+
+            if (mainWindow) {
+                logger.info('✅ Ventana principal creada exitosamente');
+
+                // Solo después de que la ventana principal esté lista, cerrar login
+                mainWindow.once('ready-to-show', () => {
+                    const loginWindow = this.windows.get('login');
+                    logger.info('🔍 Buscando ventana de login para cerrar...');
+
+                    if (loginWindow && !loginWindow.isDestroyed()) {
+                        logger.info('✅ Ventana de login encontrada, cerrando...');
+
+                        // Desconectar eventos para evitar que cierre la app
+                        loginWindow.removeAllListeners('closed');
+
+                        // Cerrar y destruir la ventana de login
+                        loginWindow.destroy();
+                        this.windows.delete('login');
+
+                        logger.info('🔐 Ventana de login cerrada y destruida');
+                    } else {
+                        logger.warn('⚠️ Ventana de login no encontrada o ya destruida');
+                    }
+                });
+            } else {
+                logger.error('❌ Error creando ventana principal');
+            }
+
+        } catch (error) {
+            logger.error('❌ Error en onLoginSuccess:', error.message);
+        }
+    }
+
+    /**
+     * Obtiene la ventana de login
+     */
+    getLoginWindow() {
+        return this.windows.get('login');
+    }
+
+    /**
      * Configura eventos comunes de ventana
      */
     setupWindowEvents(window) {
+        // Identificar si es la ventana principal
+        const isMainWindow = this.windows.get('main') === window;
+
         window.on('closed', () => {
             logger.info('Ventana cerrada');
             this.removeWindow(window);
+
+            // Si es la ventana principal, cerrar toda la aplicación
+            if (isMainWindow) {
+                logger.info('Ventana principal cerrada, cerrando aplicación');
+                const { app } = require('electron');
+                app.quit();
+            }
         });
 
         window.on('minimize', () => {

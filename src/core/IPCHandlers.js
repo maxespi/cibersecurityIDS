@@ -20,8 +20,9 @@ const MockDataService = require('../services/MockDataService');
  * Separa la lógica de IPC del archivo main.js principal
  */
 class IPCHandlers {
-    constructor(firewallManager) {
+    constructor(firewallManager, windowManager = null) {
         this.firewallManager = firewallManager;
+        this.windowManager = windowManager;
         this.appPaths = pathManager.getAppFilePaths();
         this.mockDataService = new MockDataService();
         this.setupHandlers();
@@ -40,13 +41,53 @@ class IPCHandlers {
      * Manejadores de autenticación
      */
     setupAuthHandlers() {
-        ipcMain.handle('login', Validator.createIPCHandler('login', async (event, { username, password }) => {
+        ipcMain.handle('login', async (event, data) => {
+            // Debug logging para troubleshooting
+            logger.debug('Handler login llamado', {
+                data: data,
+                dataType: typeof data,
+                keys: Object.keys(data || {})
+            });
+
+            // Extraer username y password
+            const { username, password } = data || {};
+
+            logger.debug('Credenciales extraídas', {
+                username: username,
+                password: password ? '***' : undefined,
+                usernameType: typeof username,
+                passwordType: typeof password
+            });
+
+            // Validación manual simple
+            if (!username || !password) {
+                logger.warn('Credenciales faltantes', { username: !!username, password: !!password });
+                return { success: false, error: 'Credenciales faltantes' };
+            }
             try {
                 const user = await User.findOne({ where: { username, password } });
                 const success = !!user;
 
                 if (success) {
                     logger.info('Login exitoso', { username });
+
+                    // Activar transición automáticamente después del login exitoso
+                    setTimeout(() => {
+                        logger.info('🔄 Activando transición automática...');
+
+                        try {
+                            // Usar el windowManager de la instancia que ya está disponible
+                            if (this.windowManager) {
+                                this.windowManager.onLoginSuccess(username);
+                                logger.info('✅ Transición automática ejecutada');
+                            } else {
+                                logger.error('❌ WindowManager no disponible en IPCHandlers');
+                            }
+                        } catch (error) {
+                            logger.error('❌ Error en transición automática:', error.message);
+                        }
+                    }, 2000); // 2 segundos para que se vea el mensaje de éxito
+
                 } else {
                     logger.warn('Intento de login fallido', { username });
                 }
@@ -56,7 +97,42 @@ class IPCHandlers {
                 logger.error('Error durante login', { username, error: error.message });
                 return { success: false };
             }
-        }));
+        });
+
+        // Handler para login exitoso
+        ipcMain.handle('on-login-success', async (event, username) => {
+            try {
+                logger.info('Procesando login exitoso', { username });
+
+                // Notificar al WindowManager
+                const { BrowserWindow } = require('electron');
+                const mainWindow = BrowserWindow.getFocusedWindow();
+
+                if (mainWindow) {
+                    mainWindow.webContents.send('login-success', { username });
+                }
+
+                return { success: true };
+            } catch (error) {
+                logger.error('Error procesando login exitoso', { error: error.message });
+                return { success: false };
+            }
+        });
+
+        // Handler para cerrar aplicación
+        ipcMain.handle('close-app', async (event) => {
+            try {
+                logger.info('🔒 Usuario solicitó cerrar la aplicación desde login');
+
+                const { app } = require('electron');
+                app.quit();
+
+                return { success: true };
+            } catch (error) {
+                logger.error('Error cerrando aplicación', { error: error.message });
+                return { success: false };
+            }
+        });
     }
 
     /**

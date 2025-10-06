@@ -62,11 +62,14 @@ class ElectronApp {
             // Inicializar base de datos
             await this.initializeDatabase();
 
-            // Crear ventana principal
-            const mainWindow = this.windowManager.createMainWindow();
+            // Crear ventana de login primero
+            const loginWindow = this.windowManager.createLoginWindow();
 
             // Configurar manejadores IPC
-            this.ipcHandlers = new IPCHandlers(this.firewallManager);
+            this.ipcHandlers = new IPCHandlers(this.firewallManager, this.windowManager);
+
+            // Configurar evento de login exitoso
+            this.setupLoginEvents();
 
             // Configurar shortcuts globales
             this.windowManager.setupGlobalShortcuts();
@@ -83,6 +86,42 @@ class ElectronApp {
             logger.error('❌ Error durante inicialización', { error: error.message });
             throw error;
         }
+    }
+
+    /**
+     * Configura eventos de login
+     */
+    setupLoginEvents() {
+        const { ipcMain } = require('electron');
+
+        ipcMain.handle('on-login-success', async (event, username) => {
+            try {
+                logger.info('🔑 Login exitoso para:', username);
+
+                // Cerrar ventana de login y abrir principal
+                logger.info('🔄 Activando transición de ventanas...');
+
+                // Obtener referencia correcta al windowManager
+                const windowManager = electronApp.windowManager;
+                if (windowManager && typeof windowManager.onLoginSuccess === 'function') {
+                    windowManager.onLoginSuccess(username);
+                    logger.info('✅ Transición de ventanas activada');
+                } else {
+                    logger.error('❌ WindowManager no disponible');
+                    // Fallback directo
+                    const loginWindow = windowManager.getLoginWindow();
+                    if (loginWindow) {
+                        loginWindow.close();
+                    }
+                    windowManager.createMainWindow();
+                }
+
+                return { success: true };
+            } catch (error) {
+                logger.error('Error manejando login exitoso', { error: error.message });
+                return { success: false };
+            }
+        });
     }
 
     /**
@@ -117,10 +156,16 @@ class ElectronApp {
             const existingUser = await User.findOne({ where: { username: 'admin' } });
 
             if (!existingUser) {
-                await User.create({ username: 'admin', password: 'admin' });
-                logger.info('👤 Usuario admin creado');
+                await User.create({ username: 'admin', password: '123' });
+                logger.info('👤 Usuario admin creado con credenciales: admin/123');
             } else {
-                logger.info('👤 Usuario admin ya existe');
+                // Verificar si necesita actualizar password
+                if (existingUser.password === 'admin') {
+                    await User.update({ password: '123' }, { where: { username: 'admin' } });
+                    logger.info('👤 Password de admin actualizada a 123');
+                } else {
+                    logger.info('👤 Usuario admin ya existe con password:', existingUser.password);
+                }
             }
         } catch (error) {
             logger.error('Error gestionando usuario admin', { error: error.message });
@@ -213,7 +258,7 @@ app.whenReady().then(async () => {
         await electronApp.initialize();
     } catch (error) {
         logger.error('Error fatal durante inicialización', { error: error.message });
-        electronApp.windowManager.createMainWindow(); // Crear ventana básica como fallback
+        electronApp.windowManager.createLoginWindow(); // Crear ventana de login como fallback
     }
 });
 
@@ -228,8 +273,8 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
     // En macOS, recrear ventana cuando se hace clic en el dock
-    if (electronApp.windowManager.getMainWindow() === null) {
-        electronApp.windowManager.createMainWindow();
+    if (electronApp.windowManager.getMainWindow() === null && electronApp.windowManager.getLoginWindow() === null) {
+        electronApp.windowManager.createLoginWindow();
     }
 });
 

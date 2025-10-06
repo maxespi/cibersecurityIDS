@@ -30,14 +30,16 @@ class Validator {
     static isValidUsername(username) {
         if (!username || typeof username !== 'string') return false;
 
-        const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+        // Más permisivo para admin por defecto
+        const usernameRegex = /^[a-zA-Z0-9_]{2,20}$/;
         return usernameRegex.test(username);
     }
 
     static isValidPassword(password) {
         if (!password || typeof password !== 'string') return false;
 
-        return password.length >= 4 && password.length <= 50;
+        // Permitir passwords más cortas para admin por defecto
+        return password.length >= 1 && password.length <= 50;
     }
 
     static isValidScriptName(scriptName) {
@@ -58,8 +60,30 @@ class Validator {
     static validateIPCData(channel, data) {
         const validationRules = {
             'login': (data) => {
-                return this.isValidUsername(data.username) &&
-                       this.isValidPassword(data.password);
+                // Debug logging para entender qué se está enviando
+                logger.debug('Validando datos de login', {
+                    data: data,
+                    dataType: typeof data,
+                    username: data?.username,
+                    password: data?.password ? '***' : undefined
+                });
+
+                if (!data || typeof data !== 'object') {
+                    logger.debug('Datos de login no son objeto válido');
+                    return false;
+                }
+
+                const usernameValid = this.isValidUsername(data.username);
+                const passwordValid = this.isValidPassword(data.password);
+
+                logger.debug('Resultado validación', {
+                    usernameValid,
+                    passwordValid,
+                    username: data.username,
+                    passwordLength: data.password ? data.password.length : 0
+                });
+
+                return usernameValid && passwordValid;
             },
             'run-script': (data) => {
                 return this.isValidScriptName(data);
