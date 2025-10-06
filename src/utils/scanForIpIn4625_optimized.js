@@ -5,7 +5,8 @@ const { Op } = require('sequelize');
 // Importar servicios centralizados
 const logger = require('./logger');
 const { retry } = require('./helpers');
-const { WINDOWS_EVENTS, SECURITY } = require('../config/constants');
+const { WINDOWS_EVENTS, SECURITY, IS_DEVELOPMENT } = require('../config/constants');
+const DevelopmentModeManager = require('./DevelopmentModeManager');
 
 // Importar modelos
 const DetectedIP = require('../../db/models/DetectedIP');
@@ -21,6 +22,8 @@ class WindowsEventAnalyzer {
         this.eventId = WINDOWS_EVENTS.EVENT_ID_FAILED_LOGON;
         this.maxEvents = WINDOWS_EVENTS.MAX_EVENTS_PER_SCAN;
         this.ipRegex = SECURITY.IP_VALIDATION_REGEX;
+        this.devManager = new DevelopmentModeManager();
+        this.featureConfig = this.devManager.getFeatureConfig();
     }
 
     /**
@@ -30,18 +33,31 @@ class WindowsEventAnalyzer {
         try {
             logger.info('🔍 Iniciando análisis de eventos Windows 4625');
 
-            // 1. Verificar sistema
-            if (!await this.isWindowsSystem()) {
-                return this.createErrorResult('Sistema no compatible - requiere Windows');
+            // 1. Verificar compatibilidad del sistema
+            const compatibility = await this.devManager.isSystemCompatible();
+            if (!compatibility.compatible) {
+                return this.createErrorResult(compatibility.message);
             }
+
+            logger.info('🖥️ Sistema compatible detectado', {
+                isServer: compatibility.isServer,
+                devMode: this.featureConfig.mockData
+            });
 
             // 2. Obtener whitelist
             const whitelistIPs = await this.getWhitelistIPs();
             logger.debug(`📋 Whitelist cargada: ${whitelistIPs.size} IPs`);
 
-            // 3. Obtener eventos recientes
-            const events = await this.getRecentEvents();
-            logger.info(`📊 Eventos obtenidos: ${events.length}`);
+            // 3. Obtener eventos recientes (reales o simulados)
+            const events = this.featureConfig.simulatedEvents && !this.featureConfig.securityLogAccess
+                ? this.devManager.generateMockEvents(20)
+                : await this.getRecentEvents();
+
+            logger.info(`📊 Eventos obtenidos: ${events.length}`, {
+                source: this.featureConfig.simulatedEvents && !this.featureConfig.securityLogAccess
+                    ? 'mock data'
+                    : 'sistema real'
+            });
 
             if (events.length === 0) {
                 return this.createSuccessResult([], [], 0);

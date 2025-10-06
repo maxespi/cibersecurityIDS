@@ -1,7 +1,8 @@
 // src/services/GeolocationService.js
 const fetch = require('node-fetch');
 const logger = require('../utils/logger');
-const { API } = require('../config/constants');
+const { API, IS_DEVELOPMENT } = require('../config/constants');
+const MockDataService = require('./MockDataService');
 
 /**
  * Servicio centralizado para operaciones de geolocalización
@@ -13,6 +14,8 @@ class GeolocationService {
         this.lastRequest = 0;
         this.requestCount = 0;
         this.requestWindow = 60000; // 1 minuto
+        this.mockDataService = new MockDataService();
+        this.useMockData = IS_DEVELOPMENT && process.env.USE_MOCK_GEOLOCATION === 'true';
     }
 
     /**
@@ -20,6 +23,12 @@ class GeolocationService {
      */
     async getLocation(ip) {
         try {
+            // Si está habilitado mock data, usar datos simulados
+            if (this.useMockData) {
+                logger.debug('Usando geolocalización simulada', { ip });
+                return this.mockDataService.generateMockGeolocation(ip);
+            }
+
             // Verificar cache primero
             if (this.cache.has(ip)) {
                 const cached = this.cache.get(ip);
