@@ -277,6 +277,9 @@ class IPCHandlers {
      * Manejadores de datos
      */
     setupDataHandlers() {
+        // Gestión de whitelist
+        this.setupWhitelistHandlers();
+
         // Obtener estadísticas generales
         ipcMain.handle('get-dashboard-stats', async () => {
             try {
@@ -475,6 +478,110 @@ class IPCHandlers {
                 error: error.message
             };
         }
+    }
+
+    /**
+     * Manejadores de whitelist
+     */
+    setupWhitelistHandlers() {
+        const { Op } = require('sequelize');
+
+        // Obtener IPs de whitelist
+        ipcMain.handle('get-whitelist-ips', async (event) => {
+            try {
+                // Verificar si mock data está habilitado
+                const useMockData = process.env.ENABLE_MOCK_DATA === 'true';
+
+                if (useMockData) {
+                    logger.info('📋 Usando whitelist simulada');
+                    return this.mockDataService.generateWhitelistIPs();
+                }
+
+                const whitelistEntries = await WhitelistIP.findAll({
+                    where: {
+                        [Op.or]: [
+                            { expiresAt: null },
+                            { expiresAt: { [Op.gt]: new Date() } }
+                        ]
+                    },
+                    order: [['createdAt', 'DESC']]
+                });
+
+                return {
+                    success: true,
+                    data: whitelistEntries.map(entry => ({
+                        id: entry.id,
+                        ip: entry.ip,
+                        description: entry.description,
+                        addedBy: entry.addedBy,
+                        permanent: entry.permanent,
+                        createdAt: entry.createdAt,
+                        expiresAt: entry.expiresAt
+                    }))
+                };
+            } catch (error) {
+                logger.error('Error obteniendo whitelist', { error: error.message });
+                return { success: false, error: error.message };
+            }
+        });
+
+        // Agregar IP a whitelist
+        ipcMain.handle('add-whitelist-ip', Validator.createIPCHandler('add-whitelist-ip', async (event, data) => {
+            try {
+                const { ip, description, permanent, expiresAt } = data;
+
+                // Verificar si mock data está habilitado
+                const useMockData = process.env.ENABLE_MOCK_DATA === 'true';
+
+                if (useMockData) {
+                    logger.info('📋 Simulando agregar IP a whitelist', { ip });
+                    return {
+                        success: true,
+                        data: { id: Date.now(), ip, description, permanent },
+                        message: 'IP agregada a whitelist simulada'
+                    };
+                }
+
+                const whitelistEntry = await WhitelistIP.create({
+                    ip,
+                    description,
+                    addedBy: 'admin',
+                    permanent,
+                    expiresAt: permanent ? null : expiresAt
+                });
+
+                logger.info('IP agregada a whitelist', { ip, description });
+                return { success: true, data: whitelistEntry };
+
+            } catch (error) {
+                logger.error('Error agregando IP a whitelist', { error: error.message });
+                return { success: false, error: error.message };
+            }
+        }));
+
+        // Remover IP de whitelist
+        ipcMain.handle('remove-whitelist-ip', Validator.createIPCHandler('remove-whitelist-ip', async (event, ipId) => {
+            try {
+                // Verificar si mock data está habilitado
+                const useMockData = process.env.ENABLE_MOCK_DATA === 'true';
+
+                if (useMockData) {
+                    logger.info('📋 Simulando remover IP de whitelist', { ipId });
+                    return {
+                        success: true,
+                        message: 'IP removida de whitelist simulada'
+                    };
+                }
+
+                await WhitelistIP.destroy({ where: { id: ipId } });
+                logger.info('IP removida de whitelist', { ipId });
+                return { success: true };
+
+            } catch (error) {
+                logger.error('Error removiendo IP de whitelist', { error: error.message });
+                return { success: false, error: error.message };
+            }
+        }));
     }
 }
 

@@ -321,6 +321,68 @@ class MockDataService {
     }
 
     /**
+     * Genera IPs de whitelist simuladas
+     */
+    generateWhitelistIPs() {
+        const whitelistIPs = [
+            {
+                id: 1,
+                ip: '192.168.1.1',
+                description: 'Router principal',
+                addedBy: 'admin',
+                permanent: true,
+                createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 día atrás
+                expiresAt: null
+            },
+            {
+                id: 2,
+                ip: '10.0.0.0/8',
+                description: 'Red interna corporativa',
+                addedBy: 'admin',
+                permanent: true,
+                createdAt: new Date(Date.now() - 172800000).toISOString(), // 2 días atrás
+                expiresAt: null
+            },
+            {
+                id: 3,
+                ip: '172.16.0.0/12',
+                description: 'Red privada desarrollo',
+                addedBy: 'admin',
+                permanent: true,
+                createdAt: new Date(Date.now() - 259200000).toISOString(), // 3 días atrás
+                expiresAt: null
+            },
+            {
+                id: 4,
+                ip: '8.8.8.8',
+                description: 'DNS Google (temporal)',
+                addedBy: 'admin',
+                permanent: false,
+                createdAt: new Date(Date.now() - 3600000).toISOString(), // 1 hora atrás
+                expiresAt: new Date(Date.now() + 86400000).toISOString() // Expira en 1 día
+            },
+            {
+                id: 5,
+                ip: '1.1.1.1',
+                description: 'DNS Cloudflare',
+                addedBy: 'admin',
+                permanent: false,
+                createdAt: new Date(Date.now() - 7200000).toISOString(), // 2 horas atrás
+                expiresAt: new Date(Date.now() + 172800000).toISOString() // Expira en 2 días
+            }
+        ];
+
+        logger.info('📋 Generando whitelist simulada', { count: whitelistIPs.length });
+
+        return {
+            success: true,
+            data: whitelistIPs,
+            count: whitelistIPs.length,
+            isMockData: true
+        };
+    }
+
+    /**
      * Obtiene la configuración actual de mock data
      */
     getConfiguration() {
@@ -332,7 +394,8 @@ class MockDataService {
                 events: true,
                 geolocation: true,
                 firewall: true,
-                analysis: true
+                analysis: true,
+                whitelist: true
             }
         };
     }
