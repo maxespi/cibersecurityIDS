@@ -19,7 +19,7 @@ const USER_DATA_PATH = app ? app.getPath('userData') : '';
 // Database configuration
 const DATABASE = {
     DIALECT: 'sqlite',
-    STORAGE: path.join(APP_ROOT, 'db/config/database.sqlite'),
+    STORAGE: USER_DATA_PATH ? path.join(USER_DATA_PATH, 'database.sqlite') : path.join(APP_ROOT, 'db/config/database.sqlite'),
     LOGGING: !IS_DEVELOPMENT,
     POOL: {
         max: 5,

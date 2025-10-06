@@ -13,6 +13,7 @@ const WhitelistIP = require('../../db/models/WhitelistIP');
 
 // Importar funciones específicas
 const scanForIpIn4625 = require('../utils/scanForIpIn4625');
+const MockDataService = require('../services/MockDataService');
 
 /**
  * Manejadores IPC centralizados
@@ -22,6 +23,7 @@ class IPCHandlers {
     constructor(firewallManager) {
         this.firewallManager = firewallManager;
         this.appPaths = pathManager.getAppFilePaths();
+        this.mockDataService = new MockDataService();
         this.setupHandlers();
     }
 
@@ -63,6 +65,14 @@ class IPCHandlers {
     setupFirewallHandlers() {
         ipcMain.handle('get-blocked-ips', async (event) => {
             try {
+                // Verificar si mock data está habilitado
+                const useMockData = process.env.ENABLE_MOCK_DATA === 'true';
+
+                if (useMockData) {
+                    logger.info('🔥 Usando IPs bloqueadas simuladas');
+                    return this.mockDataService.generateBlockedIPs();
+                }
+
                 const result = await this.firewallManager.getBlockedIPs();
                 return result;
             } catch (error) {
@@ -73,6 +83,14 @@ class IPCHandlers {
 
         ipcMain.handle('get-firewall-stats', async (event) => {
             try {
+                // Verificar si mock data está habilitado
+                const useMockData = process.env.ENABLE_MOCK_DATA === 'true';
+
+                if (useMockData) {
+                    logger.info('🔥 Usando estadísticas de firewall simuladas');
+                    return this.mockDataService.generateFirewallStats();
+                }
+
                 const result = await this.firewallManager.getFirewallStats();
                 return result;
             } catch (error) {
@@ -110,20 +128,45 @@ class IPCHandlers {
      */
     setupLogHandlers() {
         ipcMain.on('load-log-content', async (event) => {
-            const logFilePath = this.appPaths.registroIntentos;
+            try {
+                const useMockData = process.env.ENABLE_MOCK_DATA === 'true';
 
-            // Verificar si el archivo existe, si no, crearlo con headers
-            if (!await FileService.fileExists(logFilePath)) {
-                const headers = 'IP,Fecha,Usuario,TipoInicioSesion,CodigoError,Dominio,NombreEquipo\n';
-                await FileService.writeFile(logFilePath, headers);
-            }
+                if (useMockData) {
+                    logger.info('📝 Generando contenido de log simulado');
 
-            const result = await FileService.readFile(logFilePath);
-            if (result.success) {
-                event.reply('log-content', result.content);
-            } else {
-                event.reply('log-content', `Error al leer el archivo de log: ${result.error}`);
-                logger.error('Error cargando contenido de log', { error: result.error });
+                    // Generar CSV simulado
+                    const mockEvents = this.mockDataService.generateFailedLoginEvents(15);
+                    const headers = 'IP,Fecha,Usuario,TipoInicioSesion,CodigoError,Dominio,NombreEquipo\n';
+
+                    const csvLines = mockEvents.map(event => {
+                        const date = event.timestamp.toISOString().split('T')[0];
+                        const time = event.timestamp.toTimeString().split(' ')[0];
+                        return `${event.sourceIP},${date} ${time},${event.username},${event.logonType},4625,${event.domain},${event.workstation}`;
+                    });
+
+                    const csvContent = headers + csvLines.join('\n');
+                    event.reply('log-content', csvContent);
+                    return;
+                }
+
+                // Lógica original para datos reales
+                const logFilePath = this.appPaths.registroIntentos;
+
+                if (!await FileService.fileExists(logFilePath)) {
+                    const headers = 'IP,Fecha,Usuario,TipoInicioSesion,CodigoError,Dominio,NombreEquipo\n';
+                    await FileService.writeFile(logFilePath, headers);
+                }
+
+                const result = await FileService.readFile(logFilePath);
+                if (result.success) {
+                    event.reply('log-content', result.content);
+                } else {
+                    event.reply('log-content', `Error al leer el archivo de log: ${result.error}`);
+                    logger.error('Error cargando contenido de log', { error: result.error });
+                }
+            } catch (error) {
+                logger.error('Error en load-log-content', { error: error.message });
+                event.reply('log-content', 'Error loading log content');
             }
         });
 
@@ -237,6 +280,25 @@ class IPCHandlers {
         // Obtener estadísticas generales
         ipcMain.handle('get-dashboard-stats', async () => {
             try {
+                // Verificar si mock data está habilitado
+                const useMockData = process.env.ENABLE_MOCK_DATA === 'true';
+
+                if (useMockData) {
+                    logger.info('📊 Usando estadísticas simuladas para dashboard');
+                    const mockStats = {
+                        detectedIPs: Math.floor(Math.random() * 50) + 20,
+                        whitelistedIPs: Math.floor(Math.random() * 15) + 5,
+                        blockedIPs: Math.floor(Math.random() * 30) + 10,
+                        totalEvents: Math.floor(Math.random() * 500) + 100,
+                        recentThreats: Math.floor(Math.random() * 10) + 2,
+                        isMockData: true,
+                        lastUpdate: new Date().toISOString()
+                    };
+
+                    return { success: true, data: mockStats };
+                }
+
+                // Datos reales
                 const [detectedCount, whitelistCount, firewallResult] = await Promise.all([
                     DetectedIP.count(),
                     WhitelistIP.count(),
@@ -247,7 +309,8 @@ class IPCHandlers {
                     detectedIPs: detectedCount,
                     whitelistedIPs: whitelistCount,
                     blockedIPs: firewallResult.success ? firewallResult.data.totalBlocked : 0,
-                    totalEvents: 0 // Se actualizará desde los logs
+                    totalEvents: 0,
+                    isMockData: false
                 };
 
                 logger.debug('Estadísticas del dashboard obtenidas', stats);
@@ -255,6 +318,42 @@ class IPCHandlers {
 
             } catch (error) {
                 logger.error('Error obteniendo estadísticas', { error: error.message });
+                return { success: false, error: error.message };
+            }
+        });
+
+        // Obtener datos mock para testing
+        ipcMain.handle('get-mock-data', async (event, type) => {
+            try {
+                logger.info('🎭 Solicitando datos mock', { type });
+
+                switch (type) {
+                    case 'events':
+                        return {
+                            success: true,
+                            data: this.mockDataService.generateFailedLoginEvents(20)
+                        };
+
+                    case 'geolocation':
+                        const testIPs = ['185.220.101.5', '91.240.118.172', '45.142.214.219'];
+                        const geoData = testIPs.map(ip => this.mockDataService.generateMockGeolocation(ip));
+                        return { success: true, data: geoData };
+
+                    case 'firewall':
+                        return this.mockDataService.generateFirewallStats();
+
+                    case 'blocked-ips':
+                        return this.mockDataService.generateBlockedIPs();
+
+                    case 'analysis':
+                        return this.mockDataService.generateSecurityAnalysis();
+
+                    default:
+                        return { success: false, error: 'Tipo de mock data no válido' };
+                }
+
+            } catch (error) {
+                logger.error('Error generando mock data', { type, error: error.message });
                 return { success: false, error: error.message };
             }
         });

@@ -2,6 +2,10 @@
 const { app } = require('electron');
 const path = require('path');
 
+// Cargar variables de entorno PRIMERO
+const { loadEnvironmentVariables } = require('./src/utils/envLoader');
+loadEnvironmentVariables();
+
 // Importar módulos centralizados
 const logger = require('./src/utils/logger');
 const { IS_DEVELOPMENT } = require('./src/config/constants');
@@ -37,6 +41,15 @@ class ElectronApp {
         try {
             logger.initialize(pathManager.getLogPath());
             logger.info('🚀 Aplicación iniciando...');
+
+            // Ejecutar migraciones antes de inicializar
+            const MigrationManager = require('./src/utils/migrationManager');
+            const migrationManager = new MigrationManager();
+            const migrationResult = await migrationManager.runMigrations();
+
+            if (!migrationResult.success) {
+                logger.warn('⚠️ Migración falló, continuando con configuración actual', { error: migrationResult.error });
+            }
 
             // Configurar recarga automática en desarrollo
             if (IS_DEVELOPMENT) {
